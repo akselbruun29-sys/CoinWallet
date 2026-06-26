@@ -2,8 +2,6 @@
 
 # Wallet Vault
 
-**Self-hosted, multi-user Bitcoin wallet** — Open WebUI-style admin shell with Wasabi-inspired privacy UX.
-
 <br />
 
 `testnet-first` · `BIP84` · `per-user encryption` · `mobile-ready`
