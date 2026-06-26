@@ -1,8 +1,6 @@
 """Wallet passphrase and unlock session API."""
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 

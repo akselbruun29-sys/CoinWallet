@@ -77,6 +77,10 @@ def _resolve_user(session_data: dict, db: WalletDatabase) -> AuthUser:
     )
 
 
+def get_db() -> WalletDatabase:
+    return WalletDatabase()
+
+
 def get_any_authenticated_user(
     authorization: Optional[str] = Header(None),
     session: Optional[str] = Cookie(None, alias=SESSION_COOKIE),
@@ -110,7 +114,3 @@ def require_admin(user: AuthUser = Depends(get_current_user)) -> AuthUser:
     if user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
-
-
-def get_db() -> WalletDatabase:
-    return WalletDatabase()

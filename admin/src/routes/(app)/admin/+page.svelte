@@ -9,6 +9,8 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Alert from '$lib/components/ui/alert/index.js';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 
 	let users: User[] = $state([]);
 	let audit: AuditEntry[] = $state([]);
@@ -23,6 +25,8 @@
 		user: 'User',
 		pending: 'Pending'
 	};
+
+	const pendingCount = $derived(users.filter((u) => u.role === 'pending').length);
 
 	async function load() {
 		const me = await api.me();
@@ -50,13 +54,37 @@
 		}
 	}
 
-	async function toggleActive(user: User) {
-		await api.adminUpdateUser(user.id, { is_active: !user.is_active });
-		await load();
+	async function updateUser(user: User, patch: { role?: string; is_active?: boolean }) {
+		try {
+			await api.adminUpdateUser(user.id, patch);
+			await load();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Update failed';
+		}
 	}
 
 	onMount(load);
 </script>
+
+<div class="mb-6">
+	<Alert.Root class="border-primary/30">
+		<ShieldCheckIcon class="size-4" />
+		<Alert.Title>User isolation</Alert.Title>
+		<Alert.Description>
+			Admins manage accounts and instance settings only. Wallet mnemonics are encrypted per-user
+			with each user's wallet passphrase — admins cannot decrypt or spend from other users' wallets.
+		</Alert.Description>
+	</Alert.Root>
+</div>
+
+{#if pendingCount > 0}
+	<Card.Root class="mb-6 border-warning/40">
+		<Card.Header>
+			<Card.Title>{pendingCount} pending approval</Card.Title>
+			<Card.Description>Approve registrations by setting role to User.</Card.Description>
+		</Card.Header>
+	</Card.Root>
+{/if}
 
 <div class="grid gap-6 lg:grid-cols-2">
 	<Card.Root>
@@ -70,6 +98,7 @@
 					<Table.Row>
 						<Table.Head>Username</Table.Head>
 						<Table.Head>Role</Table.Head>
+						<Table.Head>Wallets</Table.Head>
 						<Table.Head>Status</Table.Head>
 						<Table.Head></Table.Head>
 					</Table.Row>
@@ -79,8 +108,22 @@
 						<Table.Row>
 							<Table.Cell class="font-medium">{u.username}</Table.Cell>
 							<Table.Cell>
-								<Badge variant="secondary">{roleLabels[u.role] ?? u.role}</Badge>
+								<Select.Root
+									type="single"
+									value={u.role}
+									onValueChange={(v) => v && updateUser(u, { role: v })}
+								>
+									<Select.Trigger class="h-8 w-[110px]">
+										{roleLabels[u.role] ?? u.role}
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="user">User</Select.Item>
+										<Select.Item value="admin">Admin</Select.Item>
+										<Select.Item value="pending">Pending</Select.Item>
+									</Select.Content>
+								</Select.Root>
 							</Table.Cell>
+							<Table.Cell>{u.wallet_count ?? 0}</Table.Cell>
 							<Table.Cell>
 								{#if u.is_active}
 									<Badge variant="outline" class="border-success/40 text-success">Active</Badge>
@@ -88,8 +131,21 @@
 									<Badge variant="outline" class="text-destructive">Disabled</Badge>
 								{/if}
 							</Table.Cell>
-							<Table.Cell>
-								<Button variant="ghost" size="sm" onclick={() => toggleActive(u)}>
+							<Table.Cell class="space-x-1">
+								{#if u.role === 'pending'}
+									<Button
+										variant="secondary"
+										size="sm"
+										onclick={() => updateUser(u, { role: 'user' })}
+									>
+										Approve
+									</Button>
+								{/if}
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => updateUser(u, { is_active: !u.is_active })}
+								>
 									{u.is_active ? 'Disable' : 'Enable'}
 								</Button>
 							</Table.Cell>
@@ -97,6 +153,9 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			{#if error}
+				<p class="mt-3 text-sm text-destructive">{error}</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 
@@ -125,9 +184,6 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
-				{#if error}
-					<p class="text-sm text-destructive">{error}</p>
-				{/if}
 				<Button type="submit">Create User</Button>
 			</form>
 		</Card.Content>

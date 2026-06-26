@@ -5,6 +5,8 @@
 	import { api, getToken, type User, type StatusResponse } from '$lib/api';
 	import { appRefreshTick } from '$lib/stores/wallet';
 	import { connectWalletEvents, disconnectWalletEvents } from '$lib/events';
+	import { refreshWalletSecurity, walletSecurity } from '$lib/stores/security';
+	import WalletUnlockBanner from '$lib/components/WalletUnlockBanner.svelte';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import Header from '$lib/components/layout/Header.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -13,6 +15,9 @@
 
 	let user: User | null = $state(null);
 	let status: StatusResponse | null = $state(null);
+	let security = $state($walletSecurity);
+
+	walletSecurity.subscribe((v) => (security = v));
 
 	const titles: Record<string, string> = {
 		'/': 'Dashboard',
@@ -23,6 +28,7 @@
 		'/transactions': 'Transactions',
 		'/privacy': 'Privacy',
 		'/stats': 'Stats',
+		'/security': 'Security',
 		'/logs': 'Logs',
 		'/settings': 'Settings',
 		'/admin': 'Admin'
@@ -30,7 +36,12 @@
 
 	async function load() {
 		try {
-			[user, status] = await Promise.all([api.me(), api.status()]);
+			user = await api.me();
+			if (user.role === 'pending') {
+				goto('/pending');
+				return;
+			}
+			[status] = await Promise.all([api.status(), refreshWalletSecurity()]);
 		} catch {
 			goto('/login');
 		}
@@ -67,6 +78,12 @@
 			wallets={status?.wallets ?? []}
 		/>
 		<main class="flex-1 overflow-y-auto p-6">
+			{#if security}
+				<WalletUnlockBanner
+					hasPassphrase={security.has_wallet_passphrase}
+					unlocked={security.unlocked}
+				/>
+			{/if}
 			{@render children()}
 		</main>
 	</Sidebar.Inset>

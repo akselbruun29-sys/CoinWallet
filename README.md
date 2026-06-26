@@ -67,7 +67,8 @@ API: http://127.0.0.1:8001
 | Transactions | Synced transaction history |
 | Privacy | Phase 3 (stub UI) |
 | Stats | Wallet aggregates |
-| Admin | User management, audit log |
+| Security | Wallet passphrase, lock/unlock |
+| Admin | User management, approval, audit log |
 | Settings | Account & network info |
 
 ## Project Structure
@@ -91,11 +92,44 @@ wallet-vault/
 
 ## Security
 
-- Non-custodial design — mnemonics encrypted at rest with `WALLET_ENCRYPTION_KEY`
-- Mnemonic shown **once** on wallet create; never logged or returned on GET
-- Never commit `.env`, `wallet.db`, or key material
-- Default to **testnet** until explicitly configured for mainnet
-- Admin creates users by default (`OPEN_REGISTRATION=false`)
+### User isolation (Open WebUI-style)
+
+- **Per-user wallet encryption** — mnemonics are encrypted with a key derived from each user's wallet passphrase. The server admin cannot decrypt wallets without it.
+- **Wallet unlock sessions** — signing, sync, and receive require an unlocked session (15 min TTL). Lock on logout.
+- **API scoping** — wallet routes are filtered by `user_id`; admins have no wallet API for other users.
+- **Registration** — disabled by default (`OPEN_REGISTRATION=false`). Pending users need admin approval.
+- **Admin boundaries** — server logs and full system settings are admin-only.
+
+### Setup
+
+1. Copy `.env.example` to `.env`
+2. Set **required** wallet and auth values:
+
+```env
+WALLET_ENCRYPTION_KEY=<32+ char random secret>  # server pepper, not sufficient alone to decrypt user wallets
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD_HASH="<bcrypt hash>"
+SESSION_SECRET=<random string>
+OPEN_REGISTRATION=false
+AUTO_APPROVE_USERS=true
+```
+
+### First use
+
+1. Sign in and open **Security**
+2. Set your **wallet passphrase** (separate from login password)
+3. Unlock to create wallets, sync, and send
+
+### Legacy wallets
+
+Wallets created before user encryption use server-only encryption (v1). Setting a wallet passphrase migrates them to v2 automatically.
+
+### Still trust the host for
+
+- Server-side signing while unlocked (mnemonic in memory)
+- Malicious code changes by the operator
+
+Never commit `.env`, `wallet.db`, or key material. Default to **testnet** until explicitly configured for mainnet.
 
 ## Development Phases
 

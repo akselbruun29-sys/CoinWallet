@@ -7,6 +7,7 @@
 	import CoinsIcon from '@lucide/svelte/icons/coins';
 	import ArrowLeftRightIcon from '@lucide/svelte/icons/arrow-left-right';
 	import ShieldIcon from '@lucide/svelte/icons/shield';
+	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
 	import BarChart3Icon from '@lucide/svelte/icons/bar-chart-3';
 	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
@@ -27,7 +28,7 @@
 		...restProps
 	}: Props = $props();
 
-	const nav = [
+	const userNav = [
 		{ href: '/', label: 'Dashboard', icon: LayoutDashboardIcon },
 		{ href: '/wallets', label: 'Wallets', icon: WalletIcon },
 		{ href: '/receive', label: 'Receive', icon: ArrowDownToLineIcon },
@@ -36,9 +37,15 @@
 		{ href: '/transactions', label: 'Transactions', icon: ArrowLeftRightIcon },
 		{ href: '/privacy', label: 'Privacy', icon: ShieldIcon },
 		{ href: '/stats', label: 'Stats', icon: BarChart3Icon },
-		{ href: '/logs', label: 'Logs', icon: ScrollTextIcon },
+		{ href: '/security', label: 'Security', icon: ShieldCheckIcon },
 		{ href: '/settings', label: 'Settings', icon: Settings2Icon }
 	];
+
+	const adminOnlyNav = [{ href: '/logs', label: 'Logs', icon: ScrollTextIcon }];
+
+	const nav = $derived(
+		status?.user.role === 'admin' ? [...userNav, ...adminOnlyNav] : userNav
+	);
 
 	const adminNav = { href: '/admin', label: 'Admin', icon: UsersIcon };
 </script>
