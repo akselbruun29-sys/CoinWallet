@@ -45,6 +45,11 @@ class SendRequest(BaseModel):
     utxos: Optional[list[UtxoRef]] = None
 
 
+class LabelRequest(BaseModel):
+    label: str = Field(..., min_length=1, max_length=128)
+    entity: Optional[str] = Field(default=None, max_length=64)
+
+
 @router.get("")
 def list_wallets(
     user: AuthUser = Depends(get_current_user),
@@ -311,3 +316,80 @@ def send_funds(
         user.id, "tx_sent", wallet_id=wallet_id, txid=result["txid"]
     )
     return result
+
+
+@router.get("/{wallet_id}/export")
+def export_wallet(
+    wallet_id: int,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    wallet = _get_wallet_or_404(wallet_id, user, db)
+    return {
+        "id": wallet["id"],
+        "name": wallet["name"],
+        "network": wallet["network"],
+        "xpub": wallet.get("xpub"),
+        "derivation_path": wallet.get("derivation_path"),
+    }
+
+
+@router.delete("/{wallet_id}")
+def delete_wallet(
+    wallet_id: int,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    _get_wallet_or_404(wallet_id, user, db)
+    if not db.delete_wallet(wallet_id, user.id):
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    db.add_audit(
+        "WALLET_DELETED",
+        user_id=user.id,
+        details=f"id={wallet_id}",
+        ip=request.client.host if request.client else "",
+    )
+    return {"status": "deleted", "wallet_id": wallet_id}
+
+
+@router.get("/{wallet_id}/labels")
+def list_wallet_labels(
+    wallet_id: int,
+    target_type: Optional[str] = None,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    _get_wallet_or_404(wallet_id, user, db)
+    return db.list_labels(wallet_id, target_type)
+
+
+@router.put("/{wallet_id}/labels/{target_type}/{target_id}")
+def upsert_wallet_label(
+    wallet_id: int,
+    target_type: str,
+    target_id: str,
+    body: LabelRequest,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    _get_wallet_or_404(wallet_id, user, db)
+    if target_type not in ("tx", "address", "utxo"):
+        raise HTTPException(status_code=400, detail="target_type must be tx, address, or utxo")
+    return db.upsert_label(
+        wallet_id, target_type, target_id, body.label, body.entity
+    )
+
+
+@router.delete("/{wallet_id}/labels/{target_type}/{target_id}")
+def delete_wallet_label(
+    wallet_id: int,
+    target_type: str,
+    target_id: str,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    _get_wallet_or_404(wallet_id, user, db)
+    if not db.delete_label(wallet_id, target_type, target_id):
+        raise HTTPException(status_code=404, detail="Label not found")
+    return {"status": "deleted"}

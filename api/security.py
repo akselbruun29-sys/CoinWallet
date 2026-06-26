@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api.auth import AuthUser, get_any_authenticated_user, get_current_user, get_db
+from api.rate_limit import check_rate_limit
 from src.database import WalletDatabase
 from src.wallet.keys import (
     decrypt_mnemonic,
@@ -82,6 +83,7 @@ def setup_wallet_passphrase(
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
+    check_rate_limit(request, "wallet_unlock")
     security = db.get_wallet_security(user.id) or {}
     if security.get("wallet_key_verifier"):
         raise HTTPException(
@@ -115,6 +117,7 @@ def unlock_wallet(
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
+    check_rate_limit(request, "wallet_unlock")
     security = db.get_wallet_security(user.id) or {}
     salt = security.get("wallet_key_salt")
     verifier = security.get("wallet_key_verifier")
@@ -185,6 +188,35 @@ def change_wallet_passphrase(
     unlock_user(user.id, new_dek)
     db.add_audit("WALLET_PASSPHRASE_CHANGED", user_id=user.id)
     return _security_payload(user.id, db)
+
+
+@router.post("/wallet/migrate")
+def migrate_legacy_wallets(
+    body: PassphraseRequest,
+    request: Request,
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+):
+    """Re-encrypt legacy v1 wallets using the user's wallet passphrase."""
+    check_rate_limit(request, "wallet_unlock")
+    security = db.get_wallet_security(user.id) or {}
+    salt = security.get("wallet_key_salt")
+    verifier = security.get("wallet_key_verifier")
+    if not salt or not verifier:
+        raise HTTPException(status_code=400, detail="Set wallet passphrase first")
+    if not verify_wallet_passphrase(body.passphrase, salt, user.id, verifier):
+        raise HTTPException(status_code=401, detail="Invalid wallet passphrase")
+
+    dek = derive_user_dek(body.passphrase, salt, user.id)
+    migrated = _migrate_wallets_to_v2(db, user.id, dek)
+    unlock_user(user.id, dek)
+    db.add_audit(
+        "WALLET_MIGRATED",
+        user_id=user.id,
+        details=f"migrated_wallets={migrated}",
+        ip=request.client.host if request.client else "",
+    )
+    return {**_security_payload(user.id, db), "migrated_wallets": migrated}
 
 
 def require_wallet_unlocked(

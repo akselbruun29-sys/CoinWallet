@@ -281,11 +281,23 @@ class WalletEngine:
         return history
 
     def get_privacy_summary(self, wallet_id: int, user_id: int) -> dict:
-        self._wallet_row(wallet_id, user_id)
+        if not self.db.get_wallet(wallet_id, user_id):
+            raise ValueError("Wallet not found")
         utxos = self.db.list_utxos(wallet_id)
         private = 0
         non_private = 0
         entities: list[str] = []
+
+        for row in self.db.list_labels(wallet_id):
+            name = row.get("label") or row.get("entity")
+            if name and name not in entities:
+                entities.append(name)
+
+        exchange_exposure = sum(
+            1
+            for row in self.db.list_labels(wallet_id)
+            if (row.get("entity") or "").lower() == "exchange"
+        )
 
         for u in utxos:
             flags = [f for f in (u.get("privacy_flags") or "").split(",") if f]
@@ -296,6 +308,13 @@ class WalletEngine:
             label = u.get("label")
             if label and label not in entities:
                 entities.append(label)
+            addr = u.get("address")
+            if addr:
+                addr_label = self.db.get_label(wallet_id, "address", addr)
+                if addr_label:
+                    ent = addr_label.get("label")
+                    if ent and ent not in entities:
+                        entities.append(ent)
 
         score = int(100 * private / len(utxos)) if utxos else 100
         return {
@@ -303,6 +322,7 @@ class WalletEngine:
             "private_utxos": private,
             "non_private_utxos": non_private,
             "entities": entities,
+            "exchange_exposure": exchange_exposure,
             "message": None if utxos else "Sync wallet to analyze privacy",
         }
 

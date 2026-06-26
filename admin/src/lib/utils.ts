@@ -28,8 +28,10 @@ export function formatSats(sats: number): string {
 }
 
 export function formatBtc(sats: number): string {
+	if (sats <= 0) return '0.00 BTC';
 	const btc = sats / 100_000_000;
-	return `${btc.toFixed(8)} BTC`;
+	const trimmed = btc.toFixed(8).replace(/\.?0+$/, '');
+	return `${trimmed} BTC`;
 }
 
 export function explorerTxUrl(txid: string, network = 'testnet'): string {

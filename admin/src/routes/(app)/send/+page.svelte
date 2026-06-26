@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api, type SendPreview, type Utxo, type UtxoRef } from '$lib/api';
 	import { activeWalletId, bumpAppRefresh } from '$lib/stores/wallet';
+	import WalletLockedGate from '$lib/components/WalletLockedGate.svelte';
 	import { formatBtc, formatSats, explorerTxUrl } from '$lib/utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -132,6 +133,7 @@
 	});
 </script>
 
+<WalletLockedGate action="send Bitcoin">
 <Card.Root class="mx-auto max-w-lg">
 	<Card.Header>
 		<Card.Title>Send Bitcoin</Card.Title>
@@ -219,3 +221,4 @@
 		{/if}
 	</Card.Content>
 </Card.Root>
+</WalletLockedGate>

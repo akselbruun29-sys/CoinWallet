@@ -17,7 +17,8 @@ function Stop-PortProcess($Port, $Label) {
     }
 }
 
-Stop-PortProcess 8001 "API"
+Stop-PortProcess 8002 "API"
+Stop-PortProcess 8001 "API (legacy)"
 Stop-PortProcess 5173 "Admin UI"
 
 Write-Host ""

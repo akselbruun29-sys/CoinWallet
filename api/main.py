@@ -24,13 +24,17 @@ from api.auth import (
     set_session_cookie,
     verify_password,
 )
+from api.rate_limit import check_rate_limit
 from api.wallet import router as wallet_router
+from src.config import validate_secrets
 from src.database import WalletDatabase
 from src.wallet.core import WalletService
 
 load_dotenv()
 
-app = FastAPI(title="Wallet Vault API", version="0.1.0")
+validate_secrets()
+
+app = FastAPI(title="Wallet Vault API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,8 +86,27 @@ def _client_ip(request: Request) -> str:
 
 
 @app.get("/api/health")
-def health():
-    return {"status": "ok", "app": "wallet-vault", "phase": 2}
+def health(db: WalletDatabase = Depends(get_db)):
+    settings = db.get_system_settings()
+    network = settings.get("network", "testnet")
+    backend_ok = True
+    backend_message = "ok"
+    try:
+        from src.wallet.backend import get_backend
+
+        backend = get_backend(network, db)
+        backend.tip_height()
+    except Exception as exc:
+        backend_ok = False
+        backend_message = str(exc)
+    return {
+        "status": "ok" if backend_ok else "degraded",
+        "app": "wallet-vault",
+        "phase": 3,
+        "backend_ok": backend_ok,
+        "backend_message": backend_message,
+        "network": network,
+    }
 
 
 @app.get("/api/auth/config")
@@ -96,6 +119,7 @@ def auth_config():
 
 @app.post("/api/auth/register")
 def register(body: RegisterRequest, request: Request, db: WalletDatabase = Depends(get_db)):
+    check_rate_limit(request, "register")
     if os.getenv("OPEN_REGISTRATION", "false").lower() != "true":
         raise HTTPException(status_code=403, detail="Registration is disabled")
 
@@ -125,6 +149,7 @@ def login(
     request: Request,
     db: WalletDatabase = Depends(get_db),
 ):
+    check_rate_limit(request, "login")
     password_hash = db.get_user_password_hash(body.username)
     if not password_hash or not verify_password(body.password, password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -182,10 +207,13 @@ def change_password(
 
 @app.get("/api/status")
 def status(user: AuthUser = Depends(get_current_user), db: WalletDatabase = Depends(get_db)):
+    from api.security import wallet_security_status
+
     wallets = db.list_wallets(user.id)
     settings = db.get_system_settings()
     service = WalletService(db)
     synced = service.any_wallet_synced(user.id) if wallets else False
+    security = wallet_security_status(user, db)
     return {
         "user": {"id": user.id, "username": user.username, "role": user.role},
         "wallets": wallets,
@@ -193,6 +221,7 @@ def status(user: AuthUser = Depends(get_current_user), db: WalletDatabase = Depe
         "network": settings.get("network", "testnet"),
         "tor_enabled": settings.get("tor_enabled", "false") == "true",
         "synced": synced,
+        "wallet_security": security,
     }
 
 

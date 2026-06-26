@@ -79,6 +79,27 @@
 		}
 	}
 
+	async function exportWallet(id: number, e: Event) {
+		e.stopPropagation();
+		try {
+			const data = await api.exportWallet(id);
+			await navigator.clipboard.writeText(data.xpub ?? '');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Export failed';
+		}
+	}
+
+	async function removeWallet(id: number, e: Event) {
+		e.stopPropagation();
+		if (!confirm('Delete this wallet from the server? This cannot be undone.')) return;
+		try {
+			await api.deleteWallet(id);
+			await load();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Delete failed';
+		}
+	}
+
 	onMount(load);
 </script>
 
@@ -153,6 +174,7 @@
 							<Table.Head>Sync</Table.Head>
 							<Table.Head>Network</Table.Head>
 							<Table.Head>XPub</Table.Head>
+							<Table.Head></Table.Head>
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -175,6 +197,10 @@
 								</Table.Cell>
 								<Table.Cell class="max-w-[200px] truncate font-mono text-xs text-muted-foreground">
 									{w.xpub ?? '—'}
+								</Table.Cell>
+								<Table.Cell class="space-x-1">
+									<Button variant="ghost" size="sm" onclick={(e) => exportWallet(w.id, e)}>Copy xpub</Button>
+									<Button variant="ghost" size="sm" onclick={(e) => removeWallet(w.id, e)}>Delete</Button>
 								</Table.Cell>
 							</Table.Row>
 						{/each}

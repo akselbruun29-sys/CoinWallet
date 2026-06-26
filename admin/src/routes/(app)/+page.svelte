@@ -41,14 +41,16 @@
 	});
 </script>
 
-<div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+<div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 	<Card.Root>
 		<Card.Header class="pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Total Balance</Card.Title>
 		</Card.Header>
 		<Card.Content>
 			<p class="text-2xl font-bold text-primary">{formatBtc(totalSats)}</p>
-			<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
+			{#if totalSats > 0}
+				<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 	<Card.Root>
@@ -68,6 +70,23 @@
 				<Badge variant="outline" class="border-success/40 bg-success/10 text-success">Synced</Badge>
 			{:else}
 				<Badge variant="outline" class="border-warning/40 bg-warning/10 text-warning">Not synced</Badge>
+			{/if}
+		</Card.Content>
+	</Card.Root>
+	<Card.Root>
+		<Card.Header class="pb-2">
+			<Card.Title class="text-sm font-medium text-muted-foreground">Wallet security</Card.Title>
+		</Card.Header>
+		<Card.Content class="space-y-1">
+			{#if status?.wallet_security?.unlocked}
+				<Badge variant="outline" class="border-success/40 text-success">Unlocked</Badge>
+			{:else if status?.wallet_security?.has_wallet_passphrase}
+				<Badge variant="outline" class="border-warning/40 text-warning">Locked</Badge>
+			{:else}
+				<Badge variant="outline" class="text-destructive">Passphrase not set</Badge>
+			{/if}
+			{#if (status?.wallet_security?.legacy_wallet_count ?? 0) > 0}
+				<p class="text-xs text-warning">{status?.wallet_security?.legacy_wallet_count} legacy wallet(s) — migrate in Security</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>

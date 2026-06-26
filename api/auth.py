@@ -49,11 +49,13 @@ def verify_session_token(token: str) -> Optional[dict]:
 
 
 def set_session_cookie(response: Response, token: str) -> None:
+    secure = os.getenv("SECURE_COOKIES", "false").lower() in ("true", "1", "yes")
     response.set_cookie(
         key=SESSION_COOKIE,
         value=token,
         httponly=True,
         samesite="lax",
+        secure=secure,
         max_age=SESSION_MAX_AGE,
         path="/",
     )

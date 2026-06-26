@@ -68,19 +68,24 @@
 		</div>
 
 		<Card.Root>
-			<Card.Header>
-				<Card.Title>Known entities</Card.Title>
-				<Card.Description>Address labels and exchange exposure (Phase 3)</Card.Description>
+			<Card.Header class="pb-2">
+				<Card.Title class="text-sm text-muted-foreground">Known entities</Card.Title>
+				<Card.Description>Labels from transactions, addresses, and UTXOs</Card.Description>
 			</Card.Header>
 			<Card.Content>
 				{#if summary.entities.length === 0}
-					<p class="text-sm text-muted-foreground">No labeled entities yet.</p>
+					<p class="text-sm text-muted-foreground">No labeled entities yet. Tag transactions on the Transactions page.</p>
 				{:else}
 					<div class="flex flex-wrap gap-2">
 						{#each summary.entities as entity (entity)}
 							<Badge variant="secondary">{entity}</Badge>
 						{/each}
 					</div>
+				{/if}
+				{#if summary.exchange_exposure != null && summary.exchange_exposure > 0}
+					<p class="mt-3 text-sm text-warning">
+						{summary.exchange_exposure} address(es) tagged as exchange exposure.
+					</p>
 				{/if}
 			</Card.Content>
 		</Card.Root>

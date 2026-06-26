@@ -680,6 +680,123 @@ class WalletDatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
+    # --- Labels ---
+
+    def upsert_label(
+        self,
+        wallet_id: int,
+        target_type: str,
+        target_id: str,
+        label: str,
+        entity: Optional[str] = None,
+    ) -> dict:
+        with self.get_connection() as conn:
+            existing = conn.execute(
+                """
+                SELECT id FROM labels
+                WHERE wallet_id = ? AND target_type = ? AND target_id = ?
+                """,
+                (wallet_id, target_type, target_id),
+            ).fetchone()
+            if existing:
+                conn.execute(
+                    """
+                    UPDATE labels SET label = ?, entity = ?
+                    WHERE wallet_id = ? AND target_type = ? AND target_id = ?
+                    """,
+                    (label, entity, wallet_id, target_type, target_id),
+                )
+            else:
+                conn.execute(
+                    """
+                    INSERT INTO labels (wallet_id, target_type, target_id, label, entity)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (wallet_id, target_type, target_id, label, entity),
+                )
+            if target_type == "tx":
+                conn.execute(
+                    "UPDATE transactions SET label = ? WHERE wallet_id = ? AND txid = ?",
+                    (label, wallet_id, target_id),
+                )
+            conn.commit()
+        row = self.get_label(wallet_id, target_type, target_id)
+        return row or {
+            "wallet_id": wallet_id,
+            "target_type": target_type,
+            "target_id": target_id,
+            "label": label,
+            "entity": entity,
+        }
+
+    def get_label(
+        self, wallet_id: int, target_type: str, target_id: str
+    ) -> Optional[dict]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT wallet_id, target_type, target_id, label, entity
+                FROM labels
+                WHERE wallet_id = ? AND target_type = ? AND target_id = ?
+                """,
+                (wallet_id, target_type, target_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def list_labels(self, wallet_id: int, target_type: Optional[str] = None) -> list[dict]:
+        with self.get_connection() as conn:
+            if target_type:
+                rows = conn.execute(
+                    """
+                    SELECT wallet_id, target_type, target_id, label, entity
+                    FROM labels WHERE wallet_id = ? AND target_type = ?
+                    ORDER BY target_id
+                    """,
+                    (wallet_id, target_type),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT wallet_id, target_type, target_id, label, entity
+                    FROM labels WHERE wallet_id = ?
+                    ORDER BY target_type, target_id
+                    """,
+                    (wallet_id,),
+                ).fetchall()
+            return [dict(r) for r in rows]
+
+    def delete_label(self, wallet_id: int, target_type: str, target_id: str) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                DELETE FROM labels
+                WHERE wallet_id = ? AND target_type = ? AND target_id = ?
+                """,
+                (wallet_id, target_type, target_id),
+            )
+            if target_type == "tx":
+                conn.execute(
+                    "UPDATE transactions SET label = NULL WHERE wallet_id = ? AND txid = ?",
+                    (wallet_id, target_id),
+                )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_wallet(self, wallet_id: int, user_id: int) -> bool:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT id FROM wallets WHERE id = ? AND user_id = ?",
+                (wallet_id, user_id),
+            ).fetchone()
+            if not row:
+                return False
+            conn.execute("DELETE FROM utxos WHERE wallet_id = ?", (wallet_id,))
+            conn.execute("DELETE FROM transactions WHERE wallet_id = ?", (wallet_id,))
+            conn.execute("DELETE FROM labels WHERE wallet_id = ?", (wallet_id,))
+            conn.execute("DELETE FROM wallets WHERE id = ?", (wallet_id,))
+            conn.commit()
+            return True
+
     # --- Audit ---
 
     def add_audit(

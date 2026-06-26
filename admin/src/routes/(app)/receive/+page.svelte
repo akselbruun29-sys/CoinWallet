@@ -3,6 +3,7 @@
 	import QRCode from 'qrcode';
 	import { api } from '$lib/api';
 	import { activeWalletId } from '$lib/stores/wallet';
+	import WalletLockedGate from '$lib/components/WalletLockedGate.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -43,7 +44,8 @@
 	});
 </script>
 
-<Card.Root class="mx-auto max-w-lg">
+<WalletLockedGate action="generate receive addresses">
+	<Card.Root class="mx-auto max-w-lg">
 	<Card.Header>
 		<Card.Title>Receive Bitcoin</Card.Title>
 		<Card.Description>Generate a fresh BIP84 receive address for the active wallet</Card.Description>
@@ -70,3 +72,4 @@
 		{/if}
 	</Card.Content>
 </Card.Root>
+</WalletLockedGate>

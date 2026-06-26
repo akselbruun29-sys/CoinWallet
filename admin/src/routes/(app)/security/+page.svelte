@@ -16,6 +16,7 @@
 	let confirmPass = $state('');
 	let setupPass = $state('');
 	let unlockPass = $state('');
+	let migratePass = $state('');
 	let error = $state('');
 	let saved = $state(false);
 	let loading = $state(false);
@@ -116,9 +117,39 @@
 				{#if security.legacy_wallet_count > 0}
 					<Alert.Root>
 						<Alert.Title>Legacy wallets detected</Alert.Title>
-						<Alert.Description>
-							{security.legacy_wallet_count} wallet(s) still use server-only encryption. Set or
-							enter your passphrase to migrate them to user-encrypted storage.
+						<Alert.Description class="space-y-3">
+							<p>
+								{security.legacy_wallet_count} wallet(s) still use server-only encryption. Enter your
+								passphrase to migrate them.
+							</p>
+							<form
+								class="flex flex-wrap gap-2"
+								onsubmit={async (e) => {
+									e.preventDefault();
+									loading = true;
+									error = '';
+									try {
+										await api.migrateLegacyWallets(migratePass);
+										migratePass = '';
+										saved = true;
+										await load();
+									} catch (err) {
+										error = err instanceof Error ? err.message : 'Migration failed';
+									} finally {
+										loading = false;
+									}
+								}}
+							>
+								<Input
+									type="password"
+									bind:value={migratePass}
+									placeholder="Wallet passphrase"
+									class="max-w-xs"
+									minlength={8}
+									required
+								/>
+								<Button type="submit" disabled={loading}>Migrate now</Button>
+							</form>
 						</Alert.Description>
 					</Alert.Root>
 				{/if}

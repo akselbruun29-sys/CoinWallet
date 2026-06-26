@@ -1,4 +1,4 @@
-export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8001';
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8002';
 
 const TOKEN_KEY = 'wv_auth_token';
 
@@ -68,7 +68,7 @@ export interface WalletTransaction {
   fee_sats?: number;
   block_height?: number;
   timestamp?: string;
-  label?: string;
+  label?: string | null;
 }
 
 export interface SendPreview {
@@ -95,6 +95,7 @@ export interface StatusResponse {
   network: string;
   tor_enabled: boolean;
   synced: boolean;
+  wallet_security?: WalletSecurityStatus;
 }
 
 export interface Balance {
@@ -126,7 +127,16 @@ export interface PrivacySummary {
   private_utxos: number;
   non_private_utxos: number;
   entities: string[];
+  exchange_exposure?: number;
   message?: string;
+}
+
+export interface WalletLabel {
+  wallet_id: number;
+  target_type: string;
+  target_id: string;
+  label: string;
+  entity?: string | null;
 }
 
 export interface AuditEntry {
@@ -251,6 +261,11 @@ export const api = {
       method: 'POST',
       body: '{}'
     }),
+  migrateLegacyWallets: (passphrase: string) =>
+    request<WalletSecurityStatus & { migrated_wallets?: number }>(
+      '/api/security/wallet/migrate',
+      { method: 'POST', body: JSON.stringify({ passphrase }) }
+    ),
   changeWalletPassphrase: (current_passphrase: string, new_passphrase: string) =>
     request<WalletSecurityStatus>('/api/security/wallet/passphrase/change', {
       method: 'POST',
@@ -312,6 +327,27 @@ export const api = {
     request<SendResult>(`/api/wallets/${id}/send`, {
       method: 'POST',
       body: JSON.stringify({ address, amount_sats, fee_rate_sat_vb, utxos })
+    }),
+  exportWallet: (id: number) =>
+    request<{ id: number; name: string; network: string; xpub?: string; derivation_path?: string }>(
+      `/api/wallets/${id}/export`
+    ),
+  deleteWallet: (id: number) =>
+    request<{ status: string; wallet_id: number }>(`/api/wallets/${id}`, { method: 'DELETE' }),
+  walletLabels: (id: number, target_type?: string) => {
+    const q = target_type ? `?target_type=${encodeURIComponent(target_type)}` : '';
+    return request<WalletLabel[]>(`/api/wallets/${id}/labels${q}`);
+  },
+  setWalletLabel: (
+    id: number,
+    target_type: string,
+    target_id: string,
+    label: string,
+    entity?: string
+  ) =>
+    request<WalletLabel>(`/api/wallets/${id}/labels/${target_type}/${encodeURIComponent(target_id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ label, entity })
     }),
   adminUsers: () => request<User[]>('/api/admin/users'),
   adminCreateUser: (username: string, password: string, role = 'user') =>
