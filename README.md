@@ -1,7 +1,5 @@
 # Wallet Vault
 
-A self-hosted, multi-user Bitcoin wallet web platform — Open WebUI-style admin shell with Wasabi-inspired privacy UX.
-
 **Phase 2 complete:** BIP84 wallets (testnet), Esplora sync, receive/send, UTXO and transaction views.
 
 ## Quick Start
