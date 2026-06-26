@@ -1,30 +1,60 @@
+<div align="center">
+
 # Wallet Vault
 
-A self-hosted, multi-user Bitcoin wallet web platform — Open WebUI-style admin shell with Wasabi-inspired privacy UX.
+**Self-hosted, multi-user Bitcoin wallet** — Open WebUI-style admin shell with Wasabi-inspired privacy UX.
+
+<br />
+
+`testnet-first` · `BIP84` · `per-user encryption` · `mobile-ready`
+
+<br />
+
+[Quick start](#quick-start) · [Security model](#security-model) · [App pages](#app-pages) · [AI context](#ai-context)
+
+</div>
 
 ---
 
-## For users
+## At a glance
 
-Everything below is for running and using Wallet Vault day to day.
+| | |
+|---|---|
+| **Wallets** | BIP84 native segwit — create, import, sync via Esplora |
+| **Spend** | Fee preview, PSBT signing, broadcast |
+| **Privacy** | Coin control, UTXO labels, privacy score |
+| **Security** | Your passphrase encrypts mnemonics — admins can't spend your coins |
+| **Multi-user** | Per-user isolation, admin approval, audit log |
+| **Mobile** | Bottom nav, touch targets, responsive tables |
 
-### What you get
+```text
+  ┌─────────────┐     unlock      ┌──────────────┐     Esplora     ┌──────────┐
+  │  SvelteKit  │ ◄──────────────►│  FastAPI     │ ◄──────────────►│ testnet  │
+  │  UI :5173   │   wallet keys   │  API :8001   │   sync / send   │  chain   │
+  └─────────────┘                 └──────────────┘                 └──────────┘
+         │                               │
+         │         encrypted seeds       │
+         └──────────────────────────────►│ SQLite (wallet.db)
+```
 
-- BIP84 Bitcoin wallets (testnet by default)
-- Receive addresses with QR codes
-- Send with fee preview
-- Coin control (freeze UTXOs, labels)
-- Privacy score and entity tagging
-- Per-user wallet encryption — admins cannot spend your coins without your wallet passphrase
-- Mobile-friendly UI (bottom nav on phones)
+---
 
-### Quick start
+## Quick start
+
+### 1 — Install
+
+<table>
+<tr>
+<td width="50%">
 
 **Windows**
 
 ```batch
 setup.bat
 ```
+
+</td>
+<td width="50%">
 
 **Mac / Linux**
 
@@ -33,10 +63,13 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-**Configure**
+</td>
+</tr>
+</table>
 
-1. Copy `.env.example` to `.env`
-2. Set required values:
+### 2 — Configure
+
+Copy `.env.example` → `.env`, then set:
 
 ```env
 WALLET_ENCRYPTION_KEY=<32+ char random secret>
@@ -48,7 +81,7 @@ BITCOIN_BACKEND_URI=https://blockstream.info/testnet/api/
 WALLET_DB=wallet.db
 ```
 
-Generate a password hash:
+Generate a login password hash:
 
 ```powershell
 python scripts/hash_password.py yourpassword
@@ -60,7 +93,7 @@ Or seed the admin user (dev only):
 python scripts/seed_admin.py
 ```
 
-**Run**
+### 3 — Run
 
 ```powershell
 .\start_admin.ps1
@@ -68,66 +101,101 @@ python scripts/seed_admin.py
 
 | Service | URL |
 |---------|-----|
-| UI | http://localhost:5173 |
-| API | http://127.0.0.1:8001 |
+| **UI** | http://localhost:5173 |
+| **API** | http://127.0.0.1:8001 |
 
-Sign in with `admin` and the password matching your `ADMIN_PASSWORD_HASH`.
+Sign in as `admin` with the password matching `ADMIN_PASSWORD_HASH`.
 
 Stop with `.\stop_admin.ps1` or close the service windows.
 
-### First use
+### 4 — First wallet
 
 1. Sign in
-2. Open **Security** and set your **wallet passphrase** (separate from your login password)
-3. Unlock, then create a wallet under **Wallets**
-4. **Sync**, then use **Receive** / **Send**
+2. Open **Security** → set your **wallet passphrase** (separate from login)
+3. Unlock → **Wallets** → create or import
+4. **Sync** → **Receive** / **Send**
 
-Your wallet passphrase encrypts your recovery phrases. The server admin cannot decrypt them without it.
+> Your wallet passphrase encrypts recovery phrases. The server admin cannot decrypt them without it.
 
-### Using on your phone
+---
 
-On the same Wi‑Fi, open `http://<your-pc-ip>:5173` in the browser.
+## Security model
 
-- Bottom nav: Home, Wallets, Receive, Send, More (sidebar)
+Two passwords, two jobs:
+
+```mermaid
+flowchart LR
+    subgraph login["Login password"]
+        A[Sign in to app]
+    end
+    subgraph vault["Wallet passphrase"]
+        B[Decrypt mnemonics]
+        C[Sign transactions]
+        D[Sync / receive / send]
+    end
+    login --> A
+    vault --> B --> C --> D
+```
+
+| Layer | What it protects | Who knows it |
+|-------|------------------|--------------|
+| **Login password** | App access, sessions | You |
+| **Wallet passphrase** | Encrypted mnemonics at rest | Only you |
+| **Server pepper** | `WALLET_ENCRYPTION_KEY` in `.env` | Operator — not enough alone |
+| **Unlock session** | In-memory signing keys (~15 min TTL) | This browser session |
+
+**Defaults that matter**
+
+- Registration off — admins approve new users
+- Testnet first — mainnet gated behind explicit config
+- Lock when done — unlock sessions expire automatically
+
+Never share your recovery phrase or wallet passphrase. You trust whoever runs the server — they could change code. Only use instances you trust.
+
+---
+
+## Using on your phone
+
+On the same Wi‑Fi, open `http://<your-pc-ip>:5173`.
+
+- Bottom nav: **Home · Wallets · Receive · Send · More**
 - Tables scroll horizontally on small screens
-- Forms and buttons stack for touch use
+- Forms and buttons stack for touch
 
-### App pages
+---
+
+## App pages
 
 | Page | What it does |
 |------|----------------|
-| Dashboard | Balance, sync status, quick actions |
-| Wallets | Create, import, select wallets |
-| Receive | Fresh BIP84 address + QR |
-| Send | Preview fees, broadcast |
-| Coin Control | Freeze UTXOs, add labels |
-| Transactions | History after sync |
-| Privacy | Privacy score, UTXO breakdown |
-| Stats | Wallet aggregates |
-| Security | Passphrase, lock/unlock, legacy migration |
-| Settings | Account, password, network (admin) |
-| Admin | Users, approval, audit (admin only) |
-| Logs | Server logs (admin only) |
+| **Dashboard** | Balance, sync status, quick actions |
+| **Wallets** | Create, import, select active wallet |
+| **Receive** | Fresh BIP84 address + QR |
+| **Send** | Fee preview, broadcast |
+| **Coin Control** | Freeze UTXOs, add labels |
+| **Transactions** | History after sync |
+| **Privacy** | Privacy score, UTXO breakdown |
+| **Stats** | Wallet aggregates |
+| **Security** | Passphrase, lock/unlock, legacy migration |
+| **Settings** | Account, password, network (admin) |
+| **Admin** | Users, approval, audit *(admin only)* |
+| **Logs** | Server logs *(admin only)* |
 
-### Security (what you should know)
+---
 
-- **Login password** — gets you into the app
-- **Wallet passphrase** — unlocks your keys for sync, receive, and send
-- **Unlock session** — expires after ~15 minutes; lock when done
-- **Registration** — off by default; new users may need admin approval
-- **Testnet first** — use testnet coins until you deliberately enable mainnet
+## Troubleshooting
 
-Never share your recovery phrase or wallet passphrase. The operator still hosts the server and could change code — only use instances you trust.
-
-### Troubleshooting
-
-**Can't log in**
+<details>
+<summary><strong>Can't log in</strong></summary>
 
 - Verify hash: `python scripts/hash_password.py yourpassword` matches `ADMIN_PASSWORD_HASH` in `.env`
 - Health check: `GET http://127.0.0.1:8001/api/health` → `{"status":"ok"}`
 - Hard-refresh or clear session storage if an old token is stuck
 
-**Port already in use**
+</details>
+
+<details>
+<summary><strong>Port already in use</strong></summary>
 
 ```powershell
 .\stop_admin.ps1
@@ -135,11 +203,14 @@ Never share your recovery phrase or wallet passphrase. The operator still hosts 
 
 Then start again.
 
+</details>
+
 ---
 
 ## AI context
 
-Everything below is for AI assistants and developers working on this repo. Prefer minimal, focused diffs. Do not commit unless asked. Do not run tests unless asked.
+> Everything below is for AI assistants and developers working on this repo.  
+> Prefer minimal, focused diffs. Do not commit unless asked. Do not run tests unless asked.
 
 ### Project identity
 
@@ -162,9 +233,9 @@ trading-bot/
 └── scripts/          # hash_password, seed_admin, test_login
 ```
 
-**Ports:** API `8001`, UI dev server `5173`. Start stack: `.\start_admin.ps1`
+**Ports:** API `8001`, UI dev server `5173` · Start: `.\start_admin.ps1`
 
-**Stack:** Python/FastAPI/SQLite · SvelteKit 5 · embit + Esplora (Blockstream testnet API)
+**Stack:** Python / FastAPI / SQLite · SvelteKit 5 · embit + Esplora (Blockstream testnet API)
 
 ### Safety rules (non-negotiable)
 
@@ -200,10 +271,12 @@ trading-bot/
 
 ### Phase status
 
-1. **Phase 1** — Auth, schema, UI shell ✓
-2. **Phase 2** — Keys, Esplora sync, send/receive ✓
-3. **Phase 3** — Coin control, privacy score, labels — in progress
-4. **Phase 4** — WebSocket live sync ✓ · Core RPC · node integration — planned
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **1** | Auth, schema, UI shell | ✓ |
+| **2** | Keys, Esplora sync, send/receive | ✓ |
+| **3** | Coin control, privacy score, labels | in progress |
+| **4** | WebSocket live sync ✓ · Core RPC · node integration | planned |
 
 ### Cursor rule
 
