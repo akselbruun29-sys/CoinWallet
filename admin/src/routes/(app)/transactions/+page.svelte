@@ -5,6 +5,7 @@
 	import { formatBtc, formatSats, explorerTxUrl } from '$lib/utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import ScrollTable from '$lib/components/layout/ScrollTable.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 
 	let txs: WalletTransaction[] = $state([]);
@@ -41,7 +42,8 @@
 		{:else if txs.length === 0}
 			<p class="text-sm text-muted-foreground">No transactions yet. Sync after receiving funds.</p>
 		{:else}
-			<Table.Root>
+			<ScrollTable>
+			<Table.Root class="min-w-[32rem]">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Time</Table.Head>
@@ -75,6 +77,7 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			</ScrollTable>
 		{/if}
 	</Card.Content>
 </Card.Root>

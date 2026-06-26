@@ -132,7 +132,12 @@
 	});
 </script>
 
+<<<<<<< Updated upstream
 <Card.Root class="mx-auto max-w-lg">
+=======
+<WalletLockedGate action="send Bitcoin">
+<Card.Root class="w-full max-w-lg">
+>>>>>>> Stashed changes
 	<Card.Header>
 		<Card.Title>Send Bitcoin</Card.Title>
 		<Card.Description>Testnet only — preview fees before broadcasting</Card.Description>
@@ -207,9 +212,9 @@
 					<p>Change: {formatSats(preview.change_sats)} sats</p>
 					<p>Inputs: {preview.input_count}</p>
 				</div>
-				<div class="flex gap-2">
-					<Button variant="outline" onclick={() => (preview = null)}>Cancel</Button>
-					<Button disabled={loading} onclick={doSend}>Confirm send</Button>
+				<div class="flex flex-col gap-2 sm:flex-row">
+					<Button variant="outline" class="w-full sm:w-auto" onclick={() => (preview = null)}>Cancel</Button>
+					<Button class="w-full sm:w-auto" disabled={loading} onclick={doSend}>Confirm send</Button>
 				</div>
 			{:else}
 				<Button class="w-full" disabled={loading} onclick={doPreview}>

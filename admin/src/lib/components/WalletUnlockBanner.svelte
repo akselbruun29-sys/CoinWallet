@@ -61,8 +61,8 @@
 					mnemonics so only you can spend — not even the server admin.
 				{/if}
 			</p>
-			<form class="flex flex-wrap items-end gap-2" onsubmit={unlock}>
-				<div class="min-w-[200px] flex-1 space-y-1">
+			<form class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end" onsubmit={unlock}>
+				<div class="min-w-0 flex-1 space-y-1 sm:min-w-[200px]">
 					<Label for="unlock-pass" class="sr-only">Wallet passphrase</Label>
 					<Input
 						id="unlock-pass"
@@ -73,10 +73,10 @@
 						required
 					/>
 				</div>
-				<Button type="submit" disabled={loading}>
+				<Button type="submit" class="w-full sm:w-auto" disabled={loading}>
 					{loading ? 'Working...' : hasPassphrase ? 'Unlock' : 'Set passphrase'}
 				</Button>
-				<Button variant="outline" type="button" onclick={() => goto('/security')}>Security</Button>
+				<Button variant="outline" type="button" class="w-full sm:w-auto" onclick={() => goto('/security')}>Security</Button>
 			</form>
 			{#if error}
 				<p class="text-sm text-destructive">{error}</p>

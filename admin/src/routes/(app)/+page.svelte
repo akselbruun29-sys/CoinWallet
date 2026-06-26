@@ -41,14 +41,25 @@
 	});
 </script>
 
+<<<<<<< Updated upstream
 <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+=======
+<div class="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+>>>>>>> Stashed changes
 	<Card.Root>
 		<Card.Header class="pb-2">
 			<Card.Title class="text-sm font-medium text-muted-foreground">Total Balance</Card.Title>
 		</Card.Header>
 		<Card.Content>
+<<<<<<< Updated upstream
 			<p class="text-2xl font-bold text-primary">{formatBtc(totalSats)}</p>
 			<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
+=======
+			<p class="text-xl font-bold text-primary sm:text-2xl">{formatBtc(totalSats)}</p>
+			{#if totalSats > 0}
+				<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
+			{/if}
+>>>>>>> Stashed changes
 		</Card.Content>
 	</Card.Root>
 	<Card.Root>

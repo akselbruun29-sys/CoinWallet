@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { useSidebar } from '$lib/components/ui/sidebar/context.svelte.js';
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 	import WalletIcon from '@lucide/svelte/icons/wallet';
 	import ArrowDownToLineIcon from '@lucide/svelte/icons/arrow-down-to-line';
@@ -48,6 +49,12 @@
 	);
 
 	const adminNav = { href: '/admin', label: 'Admin', icon: UsersIcon };
+
+	const sidebar = useSidebar();
+
+	function closeMobileNav() {
+		if (sidebar.isMobile) sidebar.setOpenMobile(false);
+	}
 </script>
 
 <Sidebar.Root bind:ref {collapsible} {...restProps}>
@@ -74,7 +81,7 @@
 							tooltipContent={item.label}
 						>
 							{#snippet child({ props })}
-								<a href={item.href} {...props}>
+								<a href={item.href} {...props} onclick={closeMobileNav}>
 									<item.icon />
 									<span>{item.label}</span>
 								</a>
@@ -94,7 +101,7 @@
 							tooltipContent={adminNav.label}
 						>
 							{#snippet child({ props })}
-								<a href={adminNav.href} {...props}>
+								<a href={adminNav.href} {...props} onclick={closeMobileNav}>
 									<adminNav.icon />
 									<span>{adminNav.label}</span>
 								</a>

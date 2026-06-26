@@ -8,6 +8,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import ScrollTable from '$lib/components/layout/ScrollTable.svelte';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import PlusIcon from '@lucide/svelte/icons/plus';
@@ -145,7 +146,8 @@
 			{#if wallets.length === 0}
 				<p class="text-sm text-muted-foreground">No wallets yet.</p>
 			{:else}
-				<Table.Root>
+			<ScrollTable>
+				<Table.Root class="min-w-[36rem]">
 					<Table.Header>
 						<Table.Row>
 							<Table.Head>Name</Table.Head>
@@ -180,6 +182,7 @@
 						{/each}
 					</Table.Body>
 				</Table.Root>
+			</ScrollTable>
 			{/if}
 		</Card.Content>
 	</Card.Root>

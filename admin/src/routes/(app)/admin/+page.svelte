@@ -7,6 +7,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import ScrollTable from '$lib/components/layout/ScrollTable.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
@@ -93,7 +94,8 @@
 			<Card.Description>Multi-user management — Open WebUI style</Card.Description>
 		</Card.Header>
 		<Card.Content>
-			<Table.Root>
+			<ScrollTable>
+			<Table.Root class="min-w-[36rem]">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Username</Table.Head>
@@ -153,6 +155,7 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			</ScrollTable>
 			{#if error}
 				<p class="mt-3 text-sm text-destructive">{error}</p>
 			{/if}

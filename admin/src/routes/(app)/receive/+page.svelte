@@ -43,7 +43,12 @@
 	});
 </script>
 
+<<<<<<< Updated upstream
 <Card.Root class="mx-auto max-w-lg">
+=======
+<WalletLockedGate action="generate receive addresses">
+	<Card.Root class="w-full max-w-lg">
+>>>>>>> Stashed changes
 	<Card.Header>
 		<Card.Title>Receive Bitcoin</Card.Title>
 		<Card.Description>Generate a fresh BIP84 receive address for the active wallet</Card.Description>
@@ -55,9 +60,10 @@
 			<p class="text-sm text-destructive">{error}</p>
 		{:else if address && qrDataUrl}
 			<div class="flex justify-center rounded-lg border border-border bg-white p-4">
-				<img alt="QR code for {address}" class="size-48" src={qrDataUrl} />
-			</div>			<p class="break-all rounded-md border border-border bg-muted p-3 font-mono text-sm">{address}</p>
-			<div class="flex items-center gap-2">
+				<img alt="QR code for {address}" class="size-full max-w-48 object-contain" src={qrDataUrl} />
+			</div>
+			<p class="break-all rounded-md border border-border bg-muted p-3 font-mono text-sm">{address}</p>
+			<div class="flex flex-wrap items-center gap-2">
 				<Badge variant="secondary" class="capitalize">{network}</Badge>
 				<Button variant="outline" size="sm" onclick={copy}>
 					<CopyIcon class="size-4" />
