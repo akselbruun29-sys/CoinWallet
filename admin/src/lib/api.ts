@@ -1,0 +1,341 @@
+export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8001';
+
+const TOKEN_KEY = 'wv_auth_token';
+
+export interface User {
+  id: number;
+  username: string;
+  role: 'admin' | 'user' | 'pending';
+  email?: string;
+  is_active?: boolean;
+  has_wallet_passphrase?: boolean;
+  wallet_count?: number;
+  token?: string;
+}
+
+export interface WalletSecurityStatus {
+  has_wallet_passphrase: boolean;
+  unlocked: boolean;
+  expires_at: number | null;
+  legacy_wallet_count: number;
+  wallet_count: number;
+  admin_cannot_decrypt: boolean;
+}
+
+export interface AuthConfig {
+  open_registration: boolean;
+  auto_approve_users: boolean;
+}
+
+export interface Wallet {
+  id: number;
+  user_id: number;
+  name: string;
+  xpub?: string;
+  derivation_path?: string;
+  network: string;
+  receive_index?: number;
+  last_synced_height?: number;
+  created_at: string;
+}
+
+export interface CreateWalletResponse extends Wallet {
+  mnemonic?: string;
+}
+
+export interface UtxoRef {
+  txid: string;
+  vout: number;
+}
+
+export interface Utxo {
+  txid: string;
+  vout: number;
+  amount_sats: number;
+  address?: string;
+  confirmations: number;
+  is_spent?: number;
+  derivation_index?: number;
+  label?: string | null;
+  frozen?: number | boolean;
+  is_change?: number | boolean;
+}
+
+export interface WalletTransaction {
+  txid: string;
+  direction: string;
+  amount_sats: number;
+  fee_sats?: number;
+  block_height?: number;
+  timestamp?: string;
+  label?: string;
+}
+
+export interface SendPreview {
+  address: string;
+  amount_sats: number;
+  fee_sats: number;
+  fee_rate_sat_vb: number;
+  change_sats: number;
+  input_count: number;
+  estimated_vsize: number;
+}
+
+export interface SendResult {
+  txid: string;
+  fee_sats: number;
+  amount_sats: number;
+  hex: string;
+}
+
+export interface StatusResponse {
+  user: { id: number; username: string; role: string };
+  wallets: Wallet[];
+  wallet_count: number;
+  network: string;
+  tor_enabled: boolean;
+  synced: boolean;
+}
+
+export interface Balance {
+  confirmed_sats: number;
+  unconfirmed_sats: number;
+  total_sats: number;
+}
+
+export interface SyncStatus {
+  wallet_id: number;
+  synced: boolean;
+  progress: number;
+  block_height: number;
+  message?: string;
+}
+
+export interface WalletStats {
+  balance_history: { date: string; sats: number }[];
+  tx_count: number;
+  total_received_sats: number;
+  total_sent_sats: number;
+  fees_paid_sats: number;
+  utxo_count: number;
+  privacy_score: number;
+}
+
+export interface PrivacySummary {
+  privacy_score: number;
+  private_utxos: number;
+  non_private_utxos: number;
+  entities: string[];
+  message?: string;
+}
+
+export interface AuditEntry {
+  id: number;
+  user_id?: number;
+  username?: string;
+  action: string;
+  details?: string;
+  ip?: string;
+  timestamp: string;
+}
+
+export interface SystemInfo {
+  settings: Record<string, string>;
+  node_height: number;
+  peer_count: number;
+  version: string;
+  message?: string;
+}
+
+export function getToken(): string | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...options.headers
+    }
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
+    throw new Error('Not authenticated');
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    const detail = typeof body.detail === 'string' ? body.detail : 'Request failed';
+    throw new Error(detail);
+  }
+
+  return res.json();
+}
+
+export const api = {
+  login: async (username: string, password: string) => {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ detail: 'Login failed' }));
+      throw new Error(typeof body.detail === 'string' ? body.detail : 'Login failed');
+    }
+
+    const user = (await res.json()) as User & { token: string };
+    if (user.token) setToken(user.token);
+    return user;
+  },
+  logout: async () => {
+    try {
+      await request<{ status: string }>('/api/security/wallet/lock', {
+        method: 'POST',
+        body: '{}'
+      }).catch(() => {});
+      await request<{ status: string }>('/api/auth/logout', {
+        method: 'POST',
+        body: '{}'
+      });
+    } finally {
+      clearToken();
+    }
+  },
+  authConfig: () => request<AuthConfig>('/api/auth/config'),
+  register: (username: string, password: string, email?: string) =>
+    request<{ id: number; username: string; role: string }>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, email })
+    }),
+  changePassword: (current_password: string, new_password: string) =>
+    request<{ status: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password })
+    }),
+  me: () => request<User>('/api/auth/me'),
+  walletSecurity: () => request<WalletSecurityStatus>('/api/security/wallet'),
+  setupWalletPassphrase: (passphrase: string) =>
+    request<WalletSecurityStatus>('/api/security/wallet/passphrase/setup', {
+      method: 'POST',
+      body: JSON.stringify({ passphrase })
+    }),
+  unlockWallet: (passphrase: string) =>
+    request<WalletSecurityStatus>('/api/security/wallet/unlock', {
+      method: 'POST',
+      body: JSON.stringify({ passphrase })
+    }),
+  lockWallet: () =>
+    request<WalletSecurityStatus>('/api/security/wallet/lock', {
+      method: 'POST',
+      body: '{}'
+    }),
+  changeWalletPassphrase: (current_passphrase: string, new_passphrase: string) =>
+    request<WalletSecurityStatus>('/api/security/wallet/passphrase/change', {
+      method: 'POST',
+      body: JSON.stringify({ current_passphrase, new_passphrase })
+    }),
+  status: () => request<StatusResponse>('/api/status'),
+  settings: () => request<Record<string, string>>('/api/settings'),
+  logs: (tail = 200, level?: string, search?: string) => {
+    const params = new URLSearchParams({ tail: String(tail) });
+    if (level) params.set('level', level);
+    if (search) params.set('search', search);
+    return request<{ lines: string[]; path: string }>(`/api/logs?${params}`);
+  },
+  wallets: () => request<Wallet[]>('/api/wallets'),
+  createWallet: (name: string, network = 'testnet') =>
+    request<CreateWalletResponse>('/api/wallets', {
+      method: 'POST',
+      body: JSON.stringify({ name, network })
+    }),
+  importWallet: (name: string, mnemonic: string, network = 'testnet') =>
+    request<Wallet>('/api/wallets/import', {
+      method: 'POST',
+      body: JSON.stringify({ name, mnemonic, network })
+    }),
+  syncWallet: (id: number) =>
+    request<SyncStatus>(`/api/wallets/${id}/sync`, { method: 'POST', body: '{}' }),
+  walletBalance: (id: number) => request<Balance>(`/api/wallets/${id}/balance`),
+  walletSync: (id: number) => request<SyncStatus>(`/api/wallets/${id}/sync-status`),
+  walletUtxos: (id: number) => request<Utxo[]>(`/api/wallets/${id}/utxos`),
+  updateUtxo: (id: number, txid: string, vout: number, patch: { frozen?: boolean; label?: string }) =>
+    request<Utxo>(`/api/wallets/${id}/utxos/${txid}/${vout}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch)
+    }),
+  walletTransactions: (id: number) =>
+    request<WalletTransaction[]>(`/api/wallets/${id}/transactions`),
+  walletReceive: (id: number) =>
+    request<{ address: string; network: string; index?: number }>(`/api/wallets/${id}/receive-address`),
+  walletStats: (id: number) => request<WalletStats>(`/api/wallets/${id}/stats`),
+  walletPrivacy: (id: number) => request<PrivacySummary>(`/api/wallets/${id}/privacy`),
+  sendPreview: (
+    id: number,
+    address: string,
+    amount_sats: number,
+    fee_rate_sat_vb?: number,
+    utxos?: UtxoRef[]
+  ) =>
+    request<SendPreview>(`/api/wallets/${id}/send/preview`, {
+      method: 'POST',
+      body: JSON.stringify({ address, amount_sats, fee_rate_sat_vb, utxos })
+    }),
+  sendFunds: (
+    id: number,
+    address: string,
+    amount_sats: number,
+    fee_rate_sat_vb?: number,
+    utxos?: UtxoRef[]
+  ) =>
+    request<SendResult>(`/api/wallets/${id}/send`, {
+      method: 'POST',
+      body: JSON.stringify({ address, amount_sats, fee_rate_sat_vb, utxos })
+    }),
+  adminUsers: () => request<User[]>('/api/admin/users'),
+  adminCreateUser: (username: string, password: string, role = 'user') =>
+    request<User>('/api/admin/users', {
+      method: 'POST',
+      body: JSON.stringify({ username, password, role })
+    }),
+  adminUpdateUser: (id: number, data: { role?: string; is_active?: boolean }) =>
+    request<User>(`/api/admin/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  adminAuditLog: (limit = 50) => request<AuditEntry[]>(`/api/admin/audit-log?limit=${limit}`),
+  adminSystem: () => request<SystemInfo>('/api/admin/system'),
+  adminUpdateSettings: (data: {
+    network?: string;
+    backend_type?: string;
+    backend_uri?: string;
+    tor_enabled?: boolean;
+    coordinator_uri?: string;
+    allow_mainnet?: boolean;
+  }) =>
+    request<Record<string, string>>('/api/admin/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    })
+};

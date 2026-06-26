@@ -1,0 +1,1 @@
+"""Bitcoin wallet core modules."""

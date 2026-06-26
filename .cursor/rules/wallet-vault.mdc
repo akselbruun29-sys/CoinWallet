@@ -1,0 +1,31 @@
+---
+description: Wallet Vault Bitcoin wallet platform development standards
+globs: **/*
+alwaysApply: false
+---
+
+# Wallet Vault
+
+Self-hosted multi-user Bitcoin wallet platform (testnet first).
+
+## Architecture
+
+- `api/main.py` — FastAPI app, auth, status
+- `api/wallet.py` — Wallet CRUD, sync, send
+- `src/database.py` — Users, wallets, UTXOs, transactions, audit
+- `src/wallet/` — Keys (BIP84), Esplora backend, wallet engine (embit)
+- `admin/` — SvelteKit 5 + shadcn-svelte UI
+
+## Safety Rules
+
+- Default to **testnet** (`BITCOIN_NETWORK=testnet`)
+- Never expose `encrypted_seed` or mnemonics in GET responses or audit logs
+- Gate mainnet behind explicit configuration
+- Never commit `.env`, `wallet.db`, or key material
+
+## Development Guidelines
+
+- Use Esplora for testnet chain data; Bitcoin Core RPC deferred to Phase 4
+- Encrypt seeds at rest with `WALLET_ENCRYPTION_KEY`
+- Audit sensitive actions (`WALLET_CREATED`, `TX_SENT`) without secrets
+- Keep changes minimal and focused
