@@ -91,10 +91,12 @@
   }
   body {
     @apply bg-background text-foreground;
-    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
   html {
     @apply font-sans;
+    -webkit-text-size-adjust: 100%;
   }
 }
 
@@ -103,5 +105,9 @@
     font-family: var(--font-mono);
     font-size: 0.875rem;
     letter-spacing: -0.02em;
+  }
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
   }
 }

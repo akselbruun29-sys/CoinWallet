@@ -5,6 +5,7 @@
 	import { formatBtc, formatSats } from '$lib/utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import ScrollTable from '$lib/components/layout/ScrollTable.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Checkbox } from '$lib/components/ui/checkbox/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -86,7 +87,8 @@
 		{:else if utxos.length === 0}
 			<p class="text-sm text-muted-foreground">No UTXOs. Sync after receiving funds.</p>
 		{:else}
-			<Table.Root>
+			<ScrollTable>
+			<Table.Root class="min-w-[40rem]">
 				<Table.Header>
 					<Table.Row>
 						<Table.Head>Frozen</Table.Head>
@@ -138,6 +140,7 @@
 					{/each}
 				</Table.Body>
 			</Table.Root>
+			</ScrollTable>
 		{/if}
 	</Card.Content>
 </Card.Root>

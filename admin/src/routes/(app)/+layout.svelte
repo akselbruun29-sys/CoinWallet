@@ -9,6 +9,7 @@
 	import WalletUnlockBanner from '$lib/components/WalletUnlockBanner.svelte';
 	import AppSidebar from '$lib/components/app-sidebar.svelte';
 	import Header from '$lib/components/layout/Header.svelte';
+	import MobileNav from '$lib/components/layout/MobileNav.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
 	let { children } = $props();
@@ -77,7 +78,7 @@
 			torEnabled={status?.tor_enabled}
 			wallets={status?.wallets ?? []}
 		/>
-		<main class="flex-1 overflow-y-auto p-6">
+		<main class="flex-1 overflow-x-hidden overflow-y-auto p-3 pb-20 sm:p-4 sm:pb-4 md:p-6">
 			{#if security}
 				<WalletUnlockBanner
 					hasPassphrase={security.has_wallet_passphrase}
@@ -86,5 +87,6 @@
 			{/if}
 			{@render children()}
 		</main>
+		<MobileNav />
 	</Sidebar.Inset>
 </Sidebar.Provider>

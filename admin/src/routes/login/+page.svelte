@@ -71,7 +71,7 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-background p-4">
+<div class="flex min-h-dvh items-center justify-center bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
 	<Card.Root class="w-full max-w-md border-border">
 		<Card.Header class="text-center">
 			<div class="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-primary">
