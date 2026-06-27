@@ -7,10 +7,10 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | 13 — Local-first (Wasabi-style) ✓ |
-| **Next task** | **14.3** — OS/browser detection unit tests |
-| **Last completed** | 14.2 iPad desktop-mode UA handling |
+| **Next task** | **14.4** — WebSocket auth off query string |
+| **Last completed** | 14.3 verify-detect-os.mjs UA samples |
 | **Loop mode** | Chain (5-minute ticks) |
-| **Last loop tick** | 2026-06-27T16:06 |
+| **Last loop tick** | 2026-06-27T16:11 |
 
 ### Loop log
 
@@ -53,6 +53,7 @@
 | 2026-06-27 | 12.8 ✓ | GitHub Releases URL in manifest; publish script + CI; site redeployed |
 | 2026-06-27 | 14.1 ✓ | detectOS: windows nt / mac os / mobile-first; no darwin false positive |
 | 2026-06-27 | 14.2 ✓ | iPad desktop UA via MacIntel + maxTouchPoints; mobile hint, no mac highlight |
+| 2026-06-27 | 14.3 ✓ | verify-detect-os.mjs — 6 UA samples (Win, Mac, iPhone, iPad desktop, Electron, Linux) |
 
 ---
 
@@ -616,7 +617,7 @@ User says stop loop?
 |----|------|-------------|
 | 14.1 ✓ | Fix `detectOS()` false positives — use `windows nt` / `\bmac os\b` / `iphone|ipad`; check mobile before OS; avoid `/win/` matching `darwin` | `site/src/lib/detect-os.ts` |
 | 14.2 ✓ | iPad desktop-mode UA — treat as mobile or unknown; do not highlight macOS card | `detect-os.ts` + `download/+page.svelte` |
-| 14.3 | Unit tests for OS/browser detection against real UA samples (Windows, Mac Safari, iPhone, iPad desktop, Darwin WebView) | `site/src/lib/detect-os.test.ts` or `scripts/verify-detect-os.mjs` |
+| 14.3 ✓ | Unit tests for OS/browser detection against real UA samples (Windows, Mac Safari, iPhone, iPad desktop, Darwin WebView) | `scripts/verify-detect-os.mjs` |
 
 ### 14.2 API auth & session
 
