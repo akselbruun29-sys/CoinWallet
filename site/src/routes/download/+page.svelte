@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { detectBrowser, browserLabel, isMobileUserAgent } from '$lib/detect-browser';
   import { detectionSummary, downloadHint, type ClientEnvironment } from '$lib/download-hints';
-  import { detectOS, platformLabel, type PlatformId } from '$lib/detect-os';
+  import { detectOS, isIPadDesktopUserAgent, platformLabel, type PlatformId } from '$lib/detect-os';
   import { releases, platformManifestKey } from '$lib/releases';
 
   let env = $state<ClientEnvironment>({
@@ -13,10 +13,12 @@
 
   onMount(() => {
     const ua = navigator.userAgent;
+    const hints = { maxTouchPoints: navigator.maxTouchPoints, platform: navigator.platform };
+    const ipadDesktop = isIPadDesktopUserAgent(ua, hints);
     env = {
-      os: detectOS(ua),
+      os: detectOS(ua, hints),
       browser: detectBrowser(ua),
-      mobile: isMobileUserAgent(ua),
+      mobile: isMobileUserAgent(ua) || ipadDesktop,
     };
   });
 
