@@ -150,6 +150,8 @@ Manual testnet steps: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md)
 
 ## Desktop release (Windows / macOS)
 
+**Full step-by-step operator list:** [docs/YOU_MUST_DO.md](./docs/YOU_MUST_DO.md)
+
 Operator checklist (security gate + toolchain, no build):
 
 ```powershell

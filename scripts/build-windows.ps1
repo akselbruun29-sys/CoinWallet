@@ -18,7 +18,7 @@ Write-Host "Pre-release security checks..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "..\venv\Scripts\python.exe") (Join-Path $PSScriptRoot "verify_release_security.py")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "Staging Tor Expert Bundle (optional — requires network)..." -ForegroundColor Cyan
+Write-Host "Staging Tor Expert Bundle (optional - requires network)..." -ForegroundColor Cyan
 try {
     & (Join-Path $PSScriptRoot "setup-tor.ps1")
 } catch {

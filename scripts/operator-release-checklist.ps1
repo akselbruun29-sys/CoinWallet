@@ -66,7 +66,14 @@ if ($failures.Count -gt 0) {
 Write-Host ""
 Write-Host "Checklist passed." -ForegroundColor Green
 Write-Host ""
-Write-Host "Build and publish:" -ForegroundColor Cyan
+Write-Host "Your steps: docs\YOU_MUST_DO.md" -ForegroundColor Cyan
+Write-Host "  1. gh auth login"
+Write-Host "  2. .\scripts\publish-github-release.ps1 -Version 0.1.0"
+Write-Host "  3. .\scripts\build-windows.ps1"
+Write-Host "  4. .\scripts\publish-github-release.ps1 -Version 0.1.0"
+Write-Host "  5. .\start_admin.ps1 + testnet wallet (docs\TESTNET_CHECKLIST.md)"
+Write-Host ""
+Write-Host "Build and publish (detail):" -ForegroundColor Cyan
 Write-Host "  .\scripts\build-windows.ps1          # Windows (signs if WIN_SIGN_CERT_PATH set)"
 Write-Host "  ./scripts/build-mac.sh               # macOS (signs if APPLE_SIGNING_IDENTITY set)"
 Write-Host "  .\scripts\finalize-release.ps1       # after manual manifest edits"

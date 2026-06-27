@@ -7,7 +7,7 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | 16 — Tor bootstrap (Option A) ✓ |
-| **Next task** | — **Loop stopped** (user request) |
+| **Next task** | **Operator:** [docs/YOU_MUST_DO.md](../docs/YOU_MUST_DO.md) — start at step 1 (`gh auth login`) |
 | **Last completed** | 15.11 Lighthouse a11y/tap-target pass + README audit docs |
 | **Last loop tick** | 2026-06-27 (tick 17 — stopped) |
 | **Loop mode** | Off |
@@ -477,13 +477,9 @@ Order in `app-sidebar.svelte`:
 
 **Loop:** **Stopped** (2026-06-27). Phases 14–15 complete; no further automatic ticks.
 
-**Operator backlog (manual):**
+**Loop:** **Stopped** (2026-06-27). Phases 14–16 code complete.
 
-1. `gh auth login` + `.\scripts\publish-github-release.ps1 -Version 0.1.0` — Windows installer on GitHub Releases
-2. `.\scripts\setup-tor.ps1` before release build — bundle Tor in installer
-3. Lighthouse on `site/` preview — fill score table in `site/README.md`
-
-**Deferred / future:** Phase 16.5–16.6 (local Bitcoin Core), Haveno live quotes, mobile Capacitor.
+**Your to-do list:** **[docs/YOU_MUST_DO.md](../docs/YOU_MUST_DO.md)** — only steps that require you (GitHub login, publish, rebuild, testnet test, install test).
 
 Update **Loop status** at the top of this file after every tick.
 
@@ -604,7 +600,7 @@ User says stop loop?
 | 12.7 ✓ | Deploy scripts + CI deploy job (binaries not in git) | `deploy-site.ps1`, `release-desktop.yml` deploy-site job |
 | 12.8 ✓ | Host oversized installer on GitHub Releases | `publish-github-release.ps1`, `release_urls.py`, CI `gh release upload` |
 
-**Operator:** Run `gh auth login` then `.\scripts\publish-github-release.ps1 -Version 0.1.0` to upload the binary once.
+**Operator:** Follow **§19 Operator checklist** (step-by-step). Minimum to ship: `gh auth login` → `publish-github-release.ps1 -Version 0.1.0` → rebuild with Tor → publish again → testnet wallet test.
 
 **Deferred:** mobile Capacitor (Phase 6), Haveno live quotes, optional Core RPC (9.8).
 

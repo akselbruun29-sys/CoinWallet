@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "released_at": "2026-06-27T15:56:42Z",
+  "released_at": "2026-06-27T18:36:55Z",
   "min_supported_version": "0.1.0",
   "github_repo": "akselbruun29-sys/CoinWallet",
   "signer_fingerprint": null,
@@ -9,7 +9,7 @@
   "platforms": {
     "windows": {
       "url": "https://github.com/akselbruun29-sys/CoinWallet/releases/download/v0.1.0/coinwallet-windows-x64-setup.exe",
-      "sha256": "0f9979d8e595261e31e47852c3fa0808142c586e3e147ec0fe4a00e3592dabe9",
+      "sha256": "2712e58cbbb2df678b19b3ee4ae0e51d0e50bc5d8aa1826410fc4a6a3cb07f37",
       "signature": null,
       "signature_status": "unsigned",
       "signer_fingerprint": null,
