@@ -1,12 +1,21 @@
 ---
-description: Wallet Vault Bitcoin wallet platform development standards
+description: CoinWallet cross-platform Bitcoin wallet development standards
 globs: **/*
 alwaysApply: false
 ---
 
-# Wallet Vault
+# CoinWallet
 
-Self-hosted multi-user Bitcoin wallet platform (testnet first).
+Cross-platform Bitcoin wallet — Windows, Mac, iPhone, Android. Testnet first.
+
+## Product Direction
+
+- Native apps on all four platforms (Tauri desktop, Capacitor mobile)
+- Public **download website** with Windows / Mac / iPhone / Android links
+- **Leaderboard** — opt-in only; display name + total balance (no addresses or keys)
+- **Advisor AI tab only** — on-device rule-based guidance (fees, privacy tips, explanations)
+- **No trading AI** — no exchange integration, signals, or automated trades
+- Minimize cost: free Esplora APIs, no cloud LLM at launch
 
 ## Architecture
 
@@ -14,7 +23,9 @@ Self-hosted multi-user Bitcoin wallet platform (testnet first).
 - `api/wallet.py` — Wallet CRUD, sync, send
 - `src/database.py` — Users, wallets, UTXOs, transactions, audit
 - `src/wallet/` — Keys (BIP84), Esplora backend, wallet engine (embit)
-- `admin/` — SvelteKit 5 + shadcn-svelte UI
+- `admin/` — SvelteKit 5 + shadcn-svelte UI (shared across platforms)
+
+See `.cursor/COINWALLET_MASTER_PLAN.md` for full roadmap and loop tasks.
 
 ## Safety Rules
 
@@ -25,7 +36,8 @@ Self-hosted multi-user Bitcoin wallet platform (testnet first).
 
 ## Development Guidelines
 
-- Use Esplora for testnet chain data; Bitcoin Core RPC deferred to Phase 4
+- Use Esplora for testnet chain data; Bitcoin Core RPC deferred to Phase 7
 - Encrypt seeds at rest with `WALLET_ENCRYPTION_KEY`
 - Audit sensitive actions (`WALLET_CREATED`, `TX_SENT`) without secrets
 - Keep changes minimal and focused
+- Mobile/desktop packaging should reuse `admin/` UI — avoid platform-specific forks
