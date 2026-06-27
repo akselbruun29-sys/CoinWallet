@@ -1,13 +1,13 @@
 # CoinWallet — Product Plan
 
-Cross-platform wallet for **Windows**, **Mac**, **iPhone**, and **Samsung / Android**.  
+Cross-platform desktop wallet for **Windows** and **Mac**.  
 Non-custodial, privacy-focused — **Bitcoin-first**, with optional **Monero (XMR)** and user-initiated BTC↔XMR swap (Phase 10). Advisor AI tab for guidance — no trading bot.
 
 ---
 
 ## Vision
 
-CoinWallet is a native app you install on your devices — not a browser-only web dashboard. One wallet experience everywhere: desktop at home, phone on the go. Keys stay on your device; chain sync uses free public APIs (Esplora) by default.
+CoinWallet is a native desktop app — not a browser-only web dashboard. One wallet for Windows and Mac. Keys stay on your device; chain sync uses free public APIs (Esplora) by default.
 
 A public **download website** hosts installers for every platform and shows a live **leaderboard** of users with the most coins in their wallet (opt-in only).
 
@@ -23,10 +23,8 @@ A public **download website** hosts installers for every platform and shows a li
 |----------|-------|-------------------------------------|
 | **Windows** | Tauri 2 | `.exe` from download site |
 | **Mac** | Tauri 2 | `.dmg` from download site |
-| **iPhone** | Capacitor + iOS | `.ipa` + sideload guide (no App Store) |
-| **Samsung / Android** | Capacitor + Android | `.apk` sideload from download site (no Play Store) |
 
-The existing SvelteKit UI (`admin/`) becomes the shared front-end. Tauri wraps it for desktop; Capacitor wraps it for mobile. Wallet logic stays in a local backend (FastAPI embedded in Tauri sidecar today; Rust/BDK migration optional later for smaller mobile binaries).
+The existing SvelteKit UI (`admin/`) becomes the shared front-end. Tauri wraps it for desktop. Wallet logic stays in a local backend (FastAPI embedded in Tauri sidecar).
 
 ---
 
@@ -39,14 +37,14 @@ Public marketing site (e.g. `coinwallet.app`) — separate from the wallet app i
 | Page | Content |
 |------|---------|
 | **Home** | What CoinWallet is, feature highlights, link to downloads |
-| **Download** | One page, all platforms — Windows `.exe`, Mac `.dmg`, Android `.apk`, iPhone `.ipa` + install guide (no store links) |
+| **Download** | One page — Windows `.exe` and Mac `.dmg` (no store links) |
 | **Leaderboard** | Public ranking of opt-in users by total wallet balance |
 | **Privacy / Terms** | Non-custodial disclaimer, leaderboard opt-in policy |
 
 **Download page layout:**
 
 - Auto-detect OS and highlight the matching download button
-- Manual pickers for Windows, Mac, iPhone, Samsung / Android
+- Manual pickers for Windows and Mac
 - Version number + release notes per build
 - Checksums (SHA-256) and code signature metadata for desktop/APK files
 

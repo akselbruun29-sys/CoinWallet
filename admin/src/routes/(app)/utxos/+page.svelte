@@ -22,6 +22,20 @@
 		return Boolean(u.frozen);
 	}
 
+	function privacyFlags(u: Utxo): string[] {
+		return (u.privacy_flags ?? '')
+			.split(',')
+			.map((f) => f.trim())
+			.filter(Boolean);
+	}
+
+	const FLAG_LABELS: Record<string, string> = {
+		address_reuse: 'Reuse',
+		round_amount: 'Round',
+		labeled: 'Labeled',
+		frozen: 'Frozen'
+	};
+
 	function replaceUtxo(updated: Utxo) {
 		utxos = utxos.map((u) =>
 			u.txid === updated.txid && u.vout === updated.vout ? updated : u
@@ -123,6 +137,9 @@
 									{#if u.is_change}
 										<Badge variant="secondary">Change</Badge>
 									{/if}
+									{#each privacyFlags(u) as flag (flag)}
+										<Badge variant="outline" class="text-xs">{FLAG_LABELS[flag] ?? flag}</Badge>
+									{/each}
 								</div>
 							</Table.Cell>
 							<Table.Cell>
@@ -131,7 +148,7 @@
 									value={u.label ?? ''}
 									placeholder="Label"
 									disabled={saving === utxoKey(u)}
-									onchange={(e) => saveLabel(u, e.currentTarget.value)}
+									onblur={(e) => saveLabel(u, e.currentTarget.value)}
 								/>
 							</Table.Cell>
 							<Table.Cell class="max-w-[140px] truncate font-mono text-xs">{u.address ?? '—'}</Table.Cell>

@@ -4,6 +4,7 @@
 	import { activeWalletId, bumpAppRefresh } from '$lib/stores/wallet';
 	import WalletLockedGate from '$lib/components/WalletLockedGate.svelte';
 	import { formatBtc, formatSats, explorerTxUrl } from '$lib/utils';
+	import { feeTips } from '$lib/advisor';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -209,6 +210,12 @@
 					<p>Change: {formatSats(preview.change_sats)} sats</p>
 					<p>Inputs: {preview.input_count}</p>
 				</div>
+				{#each feeTips(preview) as tip (tip.id)}
+					<Alert.Root variant={tip.severity === 'critical' ? 'destructive' : 'default'}>
+						<Alert.Title>{tip.title}</Alert.Title>
+						<Alert.Description>{tip.detail}</Alert.Description>
+					</Alert.Root>
+				{/each}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<Button variant="outline" class="w-full sm:w-auto" onclick={() => (preview = null)}>Cancel</Button>
 					<Button class="w-full sm:w-auto" disabled={loading} onclick={doSend}>Confirm send</Button>

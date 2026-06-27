@@ -118,6 +118,20 @@ class WalletDatabase:
                 )
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS leaderboard_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    display_name TEXT NOT NULL,
+                    balance_sats INTEGER NOT NULL DEFAULT 0,
+                    network TEXT NOT NULL,
+                    opted_in INTEGER NOT NULL DEFAULT 0,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, network),
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+
             conn.commit()
             self._migrate_schema(conn)
 
@@ -867,3 +881,131 @@ class WalletDatabase:
             rows = conn.execute("SELECT key, value FROM system_settings").fetchall()
             stored = {r["key"]: r["value"] for r in rows}
         return {**defaults, **stored}
+
+    # --- Leaderboard ---
+
+    def user_total_balance_sats(self, user_id: int, network: str) -> int:
+        total = 0
+        for wallet in self.list_wallets(user_id):
+            if wallet["network"] != network:
+                continue
+            confirmed, unconfirmed = self.wallet_balance_sats(wallet["id"])
+            total += confirmed + unconfirmed
+        return total
+
+    def get_leaderboard_entry(self, user_id: int, network: str) -> Optional[dict]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT user_id, display_name, balance_sats, network, opted_in, updated_at
+                FROM leaderboard_entries
+                WHERE user_id = ? AND network = ?
+                """,
+                (user_id, network),
+            ).fetchone()
+            if not row:
+                return None
+            return {
+                "user_id": row["user_id"],
+                "display_name": row["display_name"],
+                "balance_sats": row["balance_sats"],
+                "network": row["network"],
+                "opted_in": bool(row["opted_in"]),
+                "updated_at": row["updated_at"],
+            }
+
+    def set_leaderboard_opt_in(
+        self,
+        user_id: int,
+        network: str,
+        display_name: str,
+        opted_in: bool,
+        balance_sats: int = 0,
+    ) -> None:
+        with self.get_connection() as conn:
+            if not opted_in:
+                conn.execute(
+                    "DELETE FROM leaderboard_entries WHERE user_id = ? AND network = ?",
+                    (user_id, network),
+                )
+                conn.commit()
+                return
+
+            conn.execute(
+                """
+                INSERT INTO leaderboard_entries (
+                    user_id, display_name, balance_sats, network, opted_in, updated_at
+                )
+                VALUES (?, ?, ?, ?, 1, ?)
+                ON CONFLICT(user_id, network) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    balance_sats = excluded.balance_sats,
+                    opted_in = 1,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    user_id,
+                    display_name,
+                    balance_sats,
+                    network,
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def update_leaderboard_balance(
+        self, user_id: int, network: str, balance_sats: int
+    ) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE leaderboard_entries
+                SET balance_sats = ?, updated_at = ?
+                WHERE user_id = ? AND network = ? AND opted_in = 1
+                """,
+                (balance_sats, datetime.utcnow().isoformat(), user_id, network),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def list_leaderboard(self, network: str, limit: int = 100) -> list[dict]:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT display_name, balance_sats, updated_at
+                FROM leaderboard_entries
+                WHERE network = ? AND opted_in = 1
+                ORDER BY balance_sats DESC, updated_at ASC
+                LIMIT ?
+                """,
+                (network, limit),
+            ).fetchall()
+            return [
+                {
+                    "rank": idx + 1,
+                    "display_name": row["display_name"],
+                    "balance_sats": row["balance_sats"],
+                    "updated_at": row["updated_at"],
+                }
+                for idx, row in enumerate(rows)
+            ]
+
+    def get_leaderboard_rank(self, user_id: int, network: str) -> Optional[int]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT balance_sats FROM leaderboard_entries
+                WHERE user_id = ? AND network = ? AND opted_in = 1
+                """,
+                (user_id, network),
+            ).fetchone()
+            if not row:
+                return None
+            rank = conn.execute(
+                """
+                SELECT COUNT(*) + 1 FROM leaderboard_entries
+                WHERE network = ? AND opted_in = 1 AND balance_sats > ?
+                """,
+                (network, row["balance_sats"]),
+            ).fetchone()[0]
+            return int(rank)

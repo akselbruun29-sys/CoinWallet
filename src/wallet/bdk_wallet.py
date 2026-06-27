@@ -22,6 +22,7 @@ from src.wallet.keys import (
     receive_script_pubkey,
     signing_key_for_index,
 )
+from src.wallet.privacy import apply_privacy_scores, summarize_privacy
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ class WalletEngine:
             )
 
         self.db.update_wallet_sync(wallet_id, tip)
-        self._score_wallet_privacy(wallet_id)
+        apply_privacy_scores(self.db, wallet_id)
         return self.get_sync_status(wallet_id, user_id)
 
     def _scan_address(
@@ -284,73 +285,11 @@ class WalletEngine:
         if not self.db.get_wallet(wallet_id, user_id):
             raise ValueError("Wallet not found")
         utxos = self.db.list_utxos(wallet_id)
-        private = 0
-        non_private = 0
-        entities: list[str] = []
-
-        for row in self.db.list_labels(wallet_id):
-            name = row.get("label") or row.get("entity")
-            if name and name not in entities:
-                entities.append(name)
-
-        exchange_exposure = sum(
-            1
-            for row in self.db.list_labels(wallet_id)
-            if (row.get("entity") or "").lower() == "exchange"
+        return summarize_privacy(
+            utxos,
+            self.db.list_labels(wallet_id),
+            lambda addr: self.db.get_label(wallet_id, "address", addr),
         )
-
-        for u in utxos:
-            flags = [f for f in (u.get("privacy_flags") or "").split(",") if f]
-            if flags:
-                non_private += 1
-            else:
-                private += 1
-            label = u.get("label")
-            if label and label not in entities:
-                entities.append(label)
-            addr = u.get("address")
-            if addr:
-                addr_label = self.db.get_label(wallet_id, "address", addr)
-                if addr_label:
-                    ent = addr_label.get("label")
-                    if ent and ent not in entities:
-                        entities.append(ent)
-
-        score = int(100 * private / len(utxos)) if utxos else 100
-        return {
-            "privacy_score": score,
-            "private_utxos": private,
-            "non_private_utxos": non_private,
-            "entities": entities,
-            "exchange_exposure": exchange_exposure,
-            "message": None if utxos else "Sync wallet to analyze privacy",
-        }
-
-    def _score_wallet_privacy(self, wallet_id: int) -> None:
-        utxos = self.db.list_utxos(wallet_id)
-        address_counts: dict[str, int] = {}
-        for u in utxos:
-            addr = u.get("address") or ""
-            if addr:
-                address_counts[addr] = address_counts.get(addr, 0) + 1
-
-        for u in utxos:
-            flags: list[str] = []
-            addr = u.get("address") or ""
-            if addr and address_counts.get(addr, 0) > 1:
-                flags.append("address_reuse")
-            amt = u["amount_sats"]
-            if amt >= 100_000 and amt % 100_000 == 0:
-                flags.append("round_amount")
-            if u.get("label"):
-                flags.append("labeled")
-
-            self.db.set_utxo_privacy_flags(
-                wallet_id,
-                u["txid"],
-                u["vout"],
-                ",".join(flags) if flags else None,
-            )
 
     def preview_send(
         self,

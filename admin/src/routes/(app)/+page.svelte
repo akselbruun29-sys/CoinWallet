@@ -47,7 +47,7 @@
 			<Card.Title class="text-sm font-medium text-muted-foreground">Total Balance</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<p class="text-xl font-bold text-primary sm:text-2xl">{formatBtc(totalSats)}</p>
+			<p class="text-xl font-bold text-success sm:text-2xl">{formatBtc(totalSats)}</p>
 			{#if totalSats > 0}
 				<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
 			{/if}
@@ -102,15 +102,15 @@
 
 <div class="mb-6 grid gap-4 sm:grid-cols-3">
 	<Button href="/receive" variant="outline" class="h-auto flex-col gap-2 py-4">
-		<ArrowDownToLineIcon class="size-5 text-primary" />
+		<ArrowDownToLineIcon class="size-5 text-muted-foreground" />
 		Receive
 	</Button>
 	<Button href="/send" variant="outline" class="h-auto flex-col gap-2 py-4">
-		<ArrowUpFromLineIcon class="size-5 text-primary" />
+		<ArrowUpFromLineIcon class="size-5 text-muted-foreground" />
 		Send
 	</Button>
 	<Button href="/wallets" variant="outline" class="h-auto flex-col gap-2 py-4">
-		<WalletIcon class="size-5 text-primary" />
+		<WalletIcon class="size-5 text-muted-foreground" />
 		Manage Wallets
 	</Button>
 </div>
@@ -133,7 +133,7 @@
 					<li>
 						<button
 							type="button"
-							class="flex w-full items-center justify-between rounded-md border px-4 py-3 text-left transition-colors hover:bg-muted/50 {$activeWalletId === wallet.id ? 'border-primary bg-primary/5' : 'border-border'}"
+							class="flex w-full items-center justify-between rounded-md border px-4 py-3 text-left transition-colors hover:bg-muted/50 {$activeWalletId === wallet.id ? 'border-success/50 bg-success/5' : 'border-border'}"
 							onclick={() => setActiveWalletId(wallet.id)}
 						>
 							<div>
@@ -147,7 +147,7 @@
 									{/if}
 								</div>
 							</div>
-							<p class="font-mono text-sm">{formatBtc(balances[wallet.id]?.total_sats ?? 0)}</p>
+							<p class="font-mono text-sm text-success">{formatBtc(balances[wallet.id]?.total_sats ?? 0)}</p>
 						</button>
 					</li>
 				{/each}

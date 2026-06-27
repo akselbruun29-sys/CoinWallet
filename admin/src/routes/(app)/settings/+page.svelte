@@ -32,6 +32,12 @@
 	let passwordError = $state('');
 	let passwordSaved = $state(false);
 
+	let leaderboardOptIn = $state(false);
+	let leaderboardName = $state('');
+	let leaderboardSaving = $state(false);
+	let leaderboardError = $state('');
+	let leaderboardSaved = $state(false);
+
 	function applySettings(s: Record<string, string>) {
 		settings = s;
 		network = s.network ?? 'testnet';
@@ -43,8 +49,17 @@
 	}
 
 	async function load() {
-		[user, settings] = await Promise.all([api.me(), api.settings()]);
-		applySettings(settings);
+		const [userData, settingsData] = await Promise.all([api.me(), api.settings()]);
+		user = userData;
+		applySettings(settingsData);
+		try {
+			const lb = await api.leaderboardMe(settingsData.network ?? 'testnet');
+			leaderboardOptIn = lb.opted_in;
+			leaderboardName = lb.display_name ?? userData.username ?? '';
+		} catch {
+			leaderboardOptIn = false;
+			leaderboardName = userData.username ?? '';
+		}
 		try {
 			const res = await fetch(`${API_BASE}/api/health`);
 			apiOk = res.ok;
@@ -105,6 +120,26 @@
 	}
 
 	onMount(load);
+
+	async function saveLeaderboard(e: Event) {
+		e.preventDefault();
+		leaderboardSaving = true;
+		leaderboardError = '';
+		leaderboardSaved = false;
+		if (leaderboardOptIn && leaderboardName.trim().length < 2) {
+			leaderboardError = 'Display name must be at least 2 characters';
+			leaderboardSaving = false;
+			return;
+		}
+		try {
+			await api.leaderboardOptIn(leaderboardName.trim(), leaderboardOptIn);
+			leaderboardSaved = true;
+		} catch (err) {
+			leaderboardError = err instanceof Error ? err.message : 'Failed to update leaderboard';
+		} finally {
+			leaderboardSaving = false;
+		}
+	}
 </script>
 
 <div class="mx-auto max-w-lg space-y-6">
@@ -143,6 +178,42 @@
 				{/if}
 				<Button type="submit" disabled={passwordSaving}>
 					{passwordSaving ? 'Updating...' : 'Update password'}
+				</Button>
+			</form>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Leaderboard</Card.Title>
+			<Card.Description>
+				Opt in to appear on the public leaderboard. Only your display name and total balance are shared.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content>
+			<form class="space-y-4" onsubmit={saveLeaderboard}>
+				<div class="flex items-center gap-2">
+					<Checkbox id="lb-opt-in" bind:checked={leaderboardOptIn} />
+					<Label for="lb-opt-in" class="font-normal">Show me on the leaderboard</Label>
+				</div>
+				<div class="space-y-2">
+					<Label for="lb-name">Display name</Label>
+					<Input
+						id="lb-name"
+						bind:value={leaderboardName}
+						maxlength={32}
+						disabled={!leaderboardOptIn}
+						required={leaderboardOptIn}
+					/>
+				</div>
+				{#if leaderboardError}
+					<p class="text-sm text-destructive">{leaderboardError}</p>
+				{/if}
+				{#if leaderboardSaved}
+					<p class="text-sm text-success">Leaderboard settings saved.</p>
+				{/if}
+				<Button type="submit" disabled={leaderboardSaving}>
+					{leaderboardSaving ? 'Saving...' : 'Save leaderboard settings'}
 				</Button>
 			</form>
 		</Card.Content>

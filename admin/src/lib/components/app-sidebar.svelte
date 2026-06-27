@@ -9,7 +9,9 @@
 	import ArrowLeftRightIcon from '@lucide/svelte/icons/arrow-left-right';
 	import ShieldIcon from '@lucide/svelte/icons/shield';
 	import ShieldCheckIcon from '@lucide/svelte/icons/shield-check';
+	import BotIcon from '@lucide/svelte/icons/bot';
 	import BarChart3Icon from '@lucide/svelte/icons/bar-chart-3';
+	import TrophyIcon from '@lucide/svelte/icons/trophy';
 	import ScrollTextIcon from '@lucide/svelte/icons/scroll-text';
 	import Settings2Icon from '@lucide/svelte/icons/settings-2';
 	import UsersIcon from '@lucide/svelte/icons/users';
@@ -37,7 +39,9 @@
 		{ href: '/utxos', label: 'Coin Control', icon: CoinsIcon },
 		{ href: '/transactions', label: 'Transactions', icon: ArrowLeftRightIcon },
 		{ href: '/privacy', label: 'Privacy', icon: ShieldIcon },
+		{ href: '/advisor', label: 'Advisor', icon: BotIcon },
 		{ href: '/stats', label: 'Stats', icon: BarChart3Icon },
+		{ href: '/leaderboard', label: 'Leaderboard', icon: TrophyIcon },
 		{ href: '/security', label: 'Security', icon: ShieldCheckIcon },
 		{ href: '/settings', label: 'Settings', icon: Settings2Icon }
 	];
@@ -66,7 +70,7 @@
 				<ShieldIcon class="size-4" />
 			</div>
 			<span class="truncate text-base font-bold tracking-tight group-data-[collapsible=icon]:hidden">
-				Wallet Vault
+				CoinWallet
 			</span>
 		</div>
 	</Sidebar.Header>

@@ -10,7 +10,7 @@
     },
     {
       title: 'Every platform',
-      description: 'Windows, Mac, iPhone, and Android — one wallet, same experience everywhere.',
+      description: 'Native desktop apps for Windows and macOS — one wallet, same experience on both.',
     },
     {
       title: 'Testnet first',
@@ -31,7 +31,7 @@
   <title>CoinWallet — Non-custodial Bitcoin wallet</title>
   <meta
     name="description"
-    content="CoinWallet is a non-custodial Bitcoin wallet for Windows, Mac, iPhone, and Android. Download directly — no app stores."
+    content="CoinWallet is a non-custodial Bitcoin wallet for Windows and macOS. Download directly — no app stores."
   />
 </svelte:head>
 
@@ -39,17 +39,17 @@
   <!-- Hero -->
   <section class="relative overflow-hidden border-b border-border">
     <div
-      class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.78_0.18_130/0.18),transparent)]"
+      class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,oklch(0.72_0.17_145/0.15),transparent)]"
       aria-hidden="true"
     ></div>
     <div class="relative mx-auto flex max-w-5xl flex-col items-center px-6 py-20 text-center sm:py-28">
-      <p class="mb-4 text-sm font-medium tracking-wide text-primary uppercase">Non-custodial Bitcoin wallet</p>
+      <p class="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">Non-custodial Bitcoin wallet</p>
       <h1 class="mb-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-        Your keys. Your coins. <span class="text-primary">No app stores.</span>
+        Your keys. Your coins. <span class="text-success">No app stores.</span>
       </h1>
       <p class="mb-10 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-        CoinWallet runs on Windows, Mac, iPhone, and Android. Download the build for your device —
-        direct from us, free of store fees and gatekeepers.
+        CoinWallet runs on Windows and macOS. Download the build for your platform — direct from
+        us, no store fees.
       </p>
       <div class="flex flex-col items-center gap-4 sm:flex-row">
         <a
@@ -80,7 +80,7 @@
     <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {#each features as feature}
         <li
-          class="rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/40 hover:bg-accent/30"
+          class="rounded-xl border border-border bg-card p-6 transition-colors hover:border-muted-foreground/30 hover:bg-accent/50"
         >
           <h3 class="mb-2 font-semibold text-foreground">{feature.title}</h3>
           <p class="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
@@ -94,8 +94,7 @@
     <div class="mx-auto flex max-w-5xl flex-col items-center px-6 py-16 text-center">
       <h2 class="mb-3 text-2xl font-bold tracking-tight">Ready to get started?</h2>
       <p class="mb-8 max-w-xl text-muted-foreground">
-        Pick your platform on the download page. Builds are signed with checksums — sideload guides
-        included for iPhone and Android.
+        Pick your platform on the download page. Builds are signed with checksums for verification.
       </p>
       <a
         href="/download"

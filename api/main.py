@@ -25,6 +25,7 @@ from api.auth import (
     verify_password,
 )
 from api.rate_limit import check_rate_limit
+from api.leaderboard import router as leaderboard_router
 from api.wallet import router as wallet_router
 from src.config import validate_secrets
 from src.database import WalletDatabase
@@ -39,6 +40,8 @@ app = FastAPI(title="Wallet Vault API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:4173",
@@ -50,6 +53,7 @@ app.add_middleware(
 )
 
 app.include_router(wallet_router)
+app.include_router(leaderboard_router)
 app.include_router(admin_router)
 app.include_router(events_router)
 app.include_router(security_router)

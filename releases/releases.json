@@ -18,20 +18,6 @@
       "signature": null,
       "signer_fingerprint": null,
       "available": false
-    },
-    "android": {
-      "url": "/releases/coinwallet-android.apk",
-      "sha256": null,
-      "signature": null,
-      "signer_fingerprint": null,
-      "available": false
-    },
-    "ios": {
-      "url": "/releases/coinwallet-ios.ipa",
-      "sha256": null,
-      "signature": null,
-      "signer_fingerprint": null,
-      "available": false
     }
   }
 }

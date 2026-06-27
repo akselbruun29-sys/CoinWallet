@@ -8,7 +8,7 @@
 
 <br />
 
-Cross-platform Bitcoin wallet for **Windows**, **Mac**, **iPhone**, and **Samsung / Android** — non-custodial, privacy-focused, with an on-device **Advisor AI** tab for guidance (no trading features).
+Cross-platform Bitcoin wallet for **Windows** and **Mac** — non-custodial, privacy-focused, with an on-device **Advisor AI** tab for guidance (no trading features).
 
 <br />
 
@@ -267,7 +267,7 @@ CoinWallet/
 
 **Ports:** API `8001`, UI dev server `5173` · Start: `.\start_admin.ps1`
 
-**Stack:** Python / FastAPI / SQLite · SvelteKit 5 · embit + Esplora · Tauri/Capacitor (planned)
+**Stack:** Python / FastAPI / SQLite · SvelteKit 5 · embit + Esplora · Tauri (desktop)
 
 ### Safety rules (non-negotiable)
 
@@ -312,7 +312,7 @@ CoinWallet/
 | **3** | Download website (all platforms) | planned |
 | **4** | Leaderboard (opt-in, app + website) | planned |
 | **5** | Desktop apps (Tauri — Windows + Mac) | planned |
-| **6** | Mobile apps (Capacitor — iPhone + Android) | planned |
+| **6** | ~~Mobile apps~~ | **out of scope** (desktop only) |
 | **7** | Wasabi features (coin control, privacy score, labels) | ✓ |
 | **8** | Advisor AI tab (on-device guidance, no trading) | planned |
 | **9** | Web release polish, install docs, optional live sync / Core RPC | planned |

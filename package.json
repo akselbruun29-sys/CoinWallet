@@ -1,0 +1,8 @@
+{
+  "name": "coinwallet",
+  "private": true,
+  "scripts": {
+    "desktop:dev": "cargo tauri dev",
+    "desktop:build": "cargo tauri build"
+  }
+}

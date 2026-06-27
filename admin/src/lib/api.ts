@@ -59,6 +59,7 @@ export interface Utxo {
   label?: string | null;
   frozen?: number | boolean;
   is_change?: number | boolean;
+  privacy_flags?: string | null;
 }
 
 export interface WalletTransaction {
@@ -122,12 +123,23 @@ export interface WalletStats {
   privacy_score: number;
 }
 
+export type PrivacyRecommendationSeverity = 'info' | 'warning' | 'critical';
+
+export interface PrivacyRecommendation {
+  id: string;
+  severity: PrivacyRecommendationSeverity;
+  title: string;
+  detail: string;
+}
+
 export interface PrivacySummary {
   privacy_score: number;
   private_utxos: number;
   non_private_utxos: number;
   entities: string[];
   exchange_exposure?: number;
+  flag_counts?: Record<string, number>;
+  recommendations?: PrivacyRecommendation[];
   message?: string;
 }
 
@@ -147,6 +159,26 @@ export interface AuditEntry {
   details?: string;
   ip?: string;
   timestamp: string;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  display_name: string;
+  balance_sats: number;
+  updated_at?: string;
+}
+
+export interface LeaderboardResponse {
+  network: string;
+  entries: LeaderboardEntry[];
+}
+
+export interface LeaderboardMe {
+  network: string;
+  opted_in: boolean;
+  display_name: string | null;
+  balance_sats: number;
+  rank: number | null;
 }
 
 export interface SystemInfo {
@@ -373,5 +405,14 @@ export const api = {
     request<Record<string, string>>('/api/admin/settings', {
       method: 'PATCH',
       body: JSON.stringify(data)
+    }),
+  leaderboard: (network = 'testnet', limit = 100) =>
+    request<LeaderboardResponse>(`/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`),
+  leaderboardMe: (network = 'testnet') =>
+    request<LeaderboardMe>(`/api/leaderboard/me?network=${encodeURIComponent(network)}`),
+  leaderboardOptIn: (display_name: string, opted_in: boolean) =>
+    request<LeaderboardMe>('/api/leaderboard/opt-in', {
+      method: 'POST',
+      body: JSON.stringify({ display_name, opted_in })
     })
 };

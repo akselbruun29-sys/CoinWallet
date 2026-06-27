@@ -6,9 +6,10 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | 3 — Download website |
-| **Next task** | **3.5** — `releases.json` manifest |
-| **Last completed** | 3.4 |
+| **Current phase** | 9 — Polish & web release |
+| **Next task** | **9.3** — Mainnet gate audit (desktop) |
+| **Last completed** | 9.1 |
+| **Loop mode** | Chain (back-to-back tasks) |
 | **Last loop tick** | 2026-06-27 |
 
 ### Loop log
@@ -20,6 +21,12 @@
 | 2026-06-27 | 3.2 | Home page: hero, 6 feature cards, dual CTAs to /download; build OK |
 | 2026-06-27 | 3.3 | Download page: 4 platform cards with coming-soon badges and install notes |
 | 2026-06-27 | 3.4 | OS auto-detect on /download; highlights user's platform card |
+| 2026-06-27 | 3.5–3.11 | Chain: releases.json wired, privacy/terms, nav, leaderboard shell, static adapter, README — **Phase 3 complete** |
+| 2026-06-27 | 4.1–4.11 | Chain: leaderboard DB, API, settings opt-in, sync hook, app + site UI — **Phase 4 complete** |
+| 2026-06-27 | 5.1–5.8 | Chain: Tauri 2 init, static admin build, API sidecar, build scripts, releases manifest — **Phase 5 complete** |
+| 2026-06-27 | 7.1–7.5 | Chain: freeze/unfreeze + labels, `privacy.py`, recommendations UI, advisor privacy templates — **Phase 7 complete** |
+| 2026-06-27 | 8.1–8.8 | Chain: advisor engine, `/advisor` route, balance/fee/security/FAQ templates, verify script — **Phase 8 complete** |
+| 2026-06-27 | 9.1 | CoinWallet icon master (1024), Tauri/site/admin icons, `generate_icons.py` |
 
 ---
 
@@ -60,8 +67,8 @@ Background timer fires every **15 minutes** (`900s`) with sentinel `AGENT_LOOP_T
 |----------|------------|--------------|
 | Windows | Tauri 2 | `.exe` from download site (no Microsoft Store) |
 | Mac | Tauri 2 | `.dmg` from download site (no Mac App Store) |
-| iPhone | Capacitor | `.ipa` + sideload install guide on download site (no App Store) |
-| Samsung / Android | Capacitor | `.apk` sideload from download site (no Play Store) |
+
+**Platforms:** desktop only — **Windows and macOS**. Mobile (iOS/Android) is out of scope.
 
 **Distribution policy:** direct downloads only — no App Store, Play Store, or other store listings. Saves store fees and review overhead; users install from the public website.
 
@@ -150,7 +157,7 @@ Key paths:
 
 ---
 
-## 7. Phase 3 — Download website
+## 7. Phase 3 — Download website ✓
 
 **Goal:** Public `site/` SvelteKit project — marketing + downloads for all platforms.
 
@@ -160,19 +167,17 @@ Key paths:
 | 3.2 | Home page — hero, features, CTA to /download | `site/src/routes/+page.svelte` | ✓ |
 | 3.3 | Download page — 4 platform cards (Windows, Mac, iPhone, Android) | `site/src/routes/download/+page.svelte` | ✓ |
 | 3.4 | OS auto-detect — highlight current platform on /download | `site/src/lib/detect-os.ts` | ✓ |
-| 3.5 | `releases.json` manifest — version, URLs, SHA-256, signature + signer fingerprint per platform (feeds Phase 11.1–11.2) | `releases/releases.json` | |
-| 3.6 | Privacy page — non-custodial, leaderboard opt-in, swap provider disclosure, sideload trust model | `site/src/routes/privacy/+page.svelte` | |
-| 3.7 | Terms page (minimal) | `site/src/routes/terms/+page.svelte` | |
-| 3.8 | Shared nav header/footer across site pages | `site/src/lib/components/SiteNav.svelte` | |
-| 3.9 | Leaderboard page shell (static layout; API wired in Phase 4) | `site/src/routes/leaderboard/+page.svelte` | |
-| 3.10 | Static adapter config for Cloudflare Pages / GitHub Pages | `site/svelte.config.js` adapter-static | |
-| 3.11 | README section — how to build and deploy site | `site/README.md` | |
+| 3.5 | `releases.json` manifest — version, URLs, SHA-256, signature + signer fingerprint per platform (feeds Phase 11.1–11.2) | `releases/releases.json` | ✓ |
+| 3.6 | Privacy page — non-custodial, leaderboard opt-in, swap provider disclosure, sideload trust model | `site/src/routes/privacy/+page.svelte` | ✓ |
+| 3.7 | Terms page (minimal) | `site/src/routes/terms/+page.svelte` | ✓ |
+| 3.8 | Shared nav header/footer across site pages | `site/src/lib/components/SiteHeader.svelte`, `SiteFooter.svelte` | ✓ |
+| 3.9 | Leaderboard page shell (static layout; API wired in Phase 4) | `site/src/routes/leaderboard/+page.svelte` | ✓ |
+| 3.10 | Static adapter config for Cloudflare Pages / GitHub Pages | `site/svelte.config.js` adapter-static | ✓ |
+| 3.11 | README section — how to build and deploy site | `site/README.md` | ✓ |
 
 **Download page buttons (until real builds exist):**
-- Windows → `releases/coinwallet-windows-x64.exe` (placeholder `#` ok with "Coming soon" badge)
+- Windows → `releases/coinwallet-windows-x64.exe` (placeholder until built)
 - Mac → `releases/coinwallet-macos.dmg` (+ Gatekeeper / “Open anyway” note)
-- iPhone → `releases/coinwallet-ios.ipa` + link to sideload guide (AltStore / similar; no App Store)
-- Android → `releases/coinwallet-android.apk` (+ “Allow unknown sources” note)
 
 Each file lists version, SHA-256, code signature metadata, and short install steps — no store badges or store URLs.
 
@@ -185,32 +190,30 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
   "signer_fingerprint": "hex or cert thumbprint",
   "platforms": {
     "windows": { "url": "...", "sha256": "...", "signature": "...", "signer_fingerprint": "...", "available": false },
-    "macos": { "..." },
-    "android": { "..." },
-    "ios": { "..." }
+    "macos": { "..." }
   }
 }
 ```
 
 ---
 
-## 8. Phase 4 — Leaderboard
+## 8. Phase 4 — Leaderboard ✓
 
 **Goal:** Opt-in public ranking by total wallet balance — app tab + site page + API.
 
-| ID | Task | Deliverable |
-|----|------|-------------|
-| 4.1 | DB table `leaderboard_entries` (user_id, display_name, balance_sats, network, updated_at, opted_in) | `src/database.py` migration |
-| 4.2 | `GET /api/leaderboard?network=testnet&limit=100` — public, no auth; rate limit + short TTL cache (see 11.17) | `api/leaderboard.py` |
-| 4.3 | `POST /api/leaderboard/opt-in` — body: `{ display_name, opted_in }` | `api/leaderboard.py` |
-| 4.4 | `POST /api/leaderboard/update` — auth required; body: `{ balance_sats, network }` | `api/leaderboard.py` |
-| 4.5 | Register leaderboard router in `api/main.py` | |
-| 4.6 | Settings UI — leaderboard opt-in toggle + display name field | `admin/src/routes/(app)/settings/+page.svelte` |
-| 4.7 | Push balance on wallet sync when opted in | hook in sync flow / `api/wallet.py` |
-| 4.8 | App `/leaderboard` route — top N + user's rank | `admin/src/routes/(app)/leaderboard/+page.svelte` |
-| 4.9 | Sidebar nav entry for Leaderboard | `app-sidebar.svelte` |
-| 4.10 | Wire `site/leaderboard` page to public API | fetch from API URL env |
-| 4.11 | Separate testnet / mainnet tabs on leaderboard UI | both app and site |
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 4.1 | DB table `leaderboard_entries` (user_id, display_name, balance_sats, network, updated_at, opted_in) | `src/database.py` migration | ✓ |
+| 4.2 | `GET /api/leaderboard?network=testnet&limit=100` — public, no auth; rate limit + short TTL cache (see 11.17) | `api/leaderboard.py` | ✓ |
+| 4.3 | `POST /api/leaderboard/opt-in` — body: `{ display_name, opted_in }` | `api/leaderboard.py` | ✓ |
+| 4.4 | `POST /api/leaderboard/update` — auth required; body: `{ balance_sats, network }` | `api/leaderboard.py` | ✓ |
+| 4.5 | Register leaderboard router in `api/main.py` | | ✓ |
+| 4.6 | Settings UI — leaderboard opt-in toggle + display name field | `admin/src/routes/(app)/settings/+page.svelte` | ✓ |
+| 4.7 | Push balance on wallet sync when opted in | hook in sync flow / `api/wallet.py` | ✓ |
+| 4.8 | App `/leaderboard` route — top N + user's rank | `admin/src/routes/(app)/leaderboard/+page.svelte` | ✓ |
+| 4.9 | Sidebar nav entry for Leaderboard | `app-sidebar.svelte` | ✓ |
+| 4.10 | Wire `site/leaderboard` page to public API | fetch from API URL env | ✓ |
+| 4.11 | Separate testnet / mainnet tabs on leaderboard UI | both app and site | ✓ |
 
 **Privacy rules:**
 - Never send addresses, mnemonics, UTXOs, or tx history to leaderboard API.
@@ -219,22 +222,26 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
 
 ---
 
-## 9. Phase 5 — Desktop apps (Tauri)
+## 9. Phase 5 — Desktop apps (Tauri) ✓
 
-| ID | Task | Deliverable |
-|----|------|-------------|
-| 5.1 | Init Tauri 2 in repo root or `desktop/` | `src-tauri/` |
-| 5.2 | Point Tauri webview at built `admin/` static output | `tauri.conf.json` |
-| 5.3 | Embed or sidecar FastAPI for local wallet API — bind `127.0.0.1` only, `STRICT_SECRETS=true` (see 11.10, 11.20) | sidecar script |
-| 5.4 | Windows build script | `scripts/build-windows.ps1` |
-| 5.5 | Mac build script | `scripts/build-mac.sh` |
-| 5.6 | Copy artifacts to `releases/` + update `releases.json` | |
-| 5.7 | App icon + window title "CoinWallet" | |
-| 5.8 | Update download page links to real artifacts when built | |
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 5.1 | Init Tauri 2 in repo root or `desktop/` | `src-tauri/` | ✓ |
+| 5.2 | Point Tauri webview at built `admin/` static output | `tauri.conf.json` | ✓ |
+| 5.3 | Embed or sidecar FastAPI for local wallet API — bind `127.0.0.1` only, `STRICT_SECRETS=true` (see 11.10, 11.20) | `src-tauri/src/lib.rs`, `scripts/start-desktop-api.*` | ✓ |
+| 5.4 | Windows build script | `scripts/build-windows.ps1` | ✓ |
+| 5.5 | Mac build script | `scripts/build-mac.sh` | ✓ |
+| 5.6 | Copy artifacts to `releases/` + update `releases.json` | `scripts/update-releases-manifest.ps1` | ✓ |
+| 5.7 | App icon + window title "CoinWallet" | `src-tauri/tauri.conf.json`, `icons/` | ✓ |
+| 5.8 | Update download page links to real artifacts when built | driven by `releases.json` `available` flag | ✓ |
 
 ---
 
-## 10. Phase 6 — Mobile apps (Capacitor)
+## 10. Phase 6 — Mobile apps ~~(Capacitor)~~ **OUT OF SCOPE**
+
+> Desktop only: Windows + macOS. Mobile (iOS/Android) removed from product scope.
+
+<!-- Retained for historical reference only:
 
 | ID | Task | Deliverable |
 |----|------|-------------|
@@ -247,32 +254,34 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
 | 6.7 | QR scanner on Receive (camera permission) | |
 | 6.8 | Update download page with APK / IPA paths + sideload install guides | |
 
----
-
-## 11. Phase 7 — Wasabi-style privacy
-
-| ID | Task | Deliverable |
-|----|------|-------------|
-| 7.1 | UTXO freeze/unfreeze API + UI actions | |
-| 7.2 | UTXO label edit (partially started) — finish | |
-| 7.3 | Privacy score calculation from UTXO graph | `src/wallet/privacy.py` |
-| 7.4 | Privacy page — score + recommendations | `admin/.../privacy/+page.svelte` |
-| 7.5 | Feed privacy context to Advisor AI templates | |
+-->
 
 ---
 
-## 12. Phase 8 — Advisor AI tab
+## 11. Phase 7 — Wasabi-style privacy ✓
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 8.1 | Create `admin/src/lib/advisor/` — rule engine + templates | |
-| 8.2 | `/advisor` route + sidebar entry | |
-| 8.3 | Balance & recent tx explainer (template strings) | |
-| 8.4 | Fee suggestion from send preview data | |
-| 8.5 | Privacy tips from UTXO state | |
-| 8.6 | Security checklist (backup, passphrase, network) | |
-| 8.7 | Static Bitcoin FAQ content | |
-| 8.8 | **Verify:** no automated trading bot, signals, or background swap jobs (Phase 10 swap is user-initiated only) | |
+| 7.1 ✓ | UTXO freeze/unfreeze API + UI actions | `api/wallet.py`, `admin/.../utxos` |
+| 7.2 ✓ | UTXO label edit (partially started) — finish | Coin Control labels + tx labels |
+| 7.3 ✓ | Privacy score calculation from UTXO graph | `src/wallet/privacy.py` |
+| 7.4 ✓ | Privacy page — score + recommendations | `admin/.../privacy/+page.svelte` |
+| 7.5 ✓ | Feed privacy context to Advisor AI templates | `admin/src/lib/advisor/privacy.ts` |
+
+---
+
+## 12. Phase 8 — Advisor AI tab ✓
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 8.1 ✓ | Create `admin/src/lib/advisor/` — rule engine + templates | `engine.ts`, `balance.ts`, `fees.ts`, `security.ts`, `faq.ts` |
+| 8.2 ✓ | `/advisor` route + sidebar entry | `admin/.../advisor/+page.svelte`, sidebar |
+| 8.3 ✓ | Balance & recent tx explainer (template strings) | `advisor/balance.ts` |
+| 8.4 ✓ | Fee suggestion from send preview data | `advisor/fees.ts`, Send preview tips |
+| 8.5 ✓ | Privacy tips from UTXO state | `advisor/privacy.ts` |
+| 8.6 ✓ | Security checklist (backup, passphrase, network) | `advisor/security.ts` |
+| 8.7 ✓ | Static Bitcoin FAQ content | `advisor/faq.ts` |
+| 8.8 ✓ | **Verify:** no automated trading bot, signals, or background swap jobs | `scripts/verify_no_trading_features.py` |
 
 ---
 
@@ -280,8 +289,8 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 9.1 | App icons all platforms (1024 master) | |
-| 9.2 | Splash screens mobile | |
+| 9.1 ✓ | App icons all platforms (1024 master) | `assets/branding/`, `scripts/generate_icons.py`, `src-tauri/icons/` |
+| 9.2 — | Splash screens mobile | **Out of scope** (desktop-only) |
 | 9.3 | Mainnet gate audit (mobile + desktop) — require v2 passphrase encryption + signed release acknowledgment | |
 | 9.4 | Backup flow audit — mnemonic shown once | |
 | 9.5 | Deploy download site to Cloudflare Pages (free tier) | |
@@ -410,7 +419,7 @@ Order in `app-sidebar.svelte`:
 
 ## 19. Current pointer
 
-**Next task:** **3.5** — `releases/releases.json` manifest (see Phase 3 table above).
+**Next task:** **9.3** — Mainnet gate audit (see Phase 9 table above).
 
 Update **Loop status** at the top of this file after every tick.
 

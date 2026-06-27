@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from api.auth import AuthUser, get_current_user, get_db
 from api.events import publish_wallet_event
+from api.leaderboard import push_leaderboard_balance
 from api.security import require_wallet_unlocked
 from src.database import WalletDatabase
 from src.wallet.core import WalletService
@@ -136,6 +137,9 @@ def sync_wallet(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     publish_wallet_event(user.id, "wallet_synced", wallet_id=wallet_id)
+    wallet = db.get_wallet(wallet_id, user.id)
+    if wallet:
+        push_leaderboard_balance(db, user.id, wallet["network"])
     return result
 
 

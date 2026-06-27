@@ -17,19 +17,15 @@ export type ReleaseManifest = {
   platforms: {
     windows: ReleasePlatform;
     macos: ReleasePlatform;
-    android: ReleasePlatform;
-    ios: ReleasePlatform;
   };
 };
 
 export const releases = manifest as ReleaseManifest;
 
 export const platformManifestKey: Record<
-  'windows' | 'mac' | 'iphone' | 'android',
+  'windows' | 'mac',
   keyof ReleaseManifest['platforms']
 > = {
   windows: 'windows',
   mac: 'macos',
-  iphone: 'ios',
-  android: 'android',
 };
