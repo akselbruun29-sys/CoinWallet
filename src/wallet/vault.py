@@ -13,8 +13,24 @@ import bcrypt
 
 UNLOCK_TTL_SECONDS = int(os.getenv("WALLET_UNLOCK_TTL", "900"))  # 15 minutes
 
+_unlock_ttl_override: int | None = None
 _unlocks: dict[int, tuple[bytes, float]] = {}
 _lock = Lock()
+
+
+def unlock_ttl_seconds() -> int:
+    if _unlock_ttl_override is not None:
+        return _unlock_ttl_override
+    return UNLOCK_TTL_SECONDS
+
+
+def configure_unlock_ttl(seconds: int) -> None:
+    global _unlock_ttl_override
+    if seconds < 60:
+        raise ValueError("Wallet unlock TTL must be at least 60 seconds")
+    if seconds > 86_400:
+        raise ValueError("Wallet unlock TTL cannot exceed 24 hours")
+    _unlock_ttl_override = seconds
 
 
 def new_wallet_salt() -> str:
@@ -53,7 +69,7 @@ def verify_wallet_passphrase(
 
 
 def unlock_user(user_id: int, dek: bytes) -> float:
-    expires_at = time.time() + UNLOCK_TTL_SECONDS
+    expires_at = time.time() + unlock_ttl_seconds()
     with _lock:
         _unlocks[user_id] = (dek, expires_at)
     return expires_at

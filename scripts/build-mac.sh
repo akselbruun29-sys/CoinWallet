@@ -14,6 +14,9 @@ if [[ ! -d admin/node_modules ]]; then
   (cd admin && npm install)
 fi
 
+echo "Pre-release security checks..."
+./venv/bin/python scripts/verify_release_security.py
+
 echo "Building admin UI (desktop)..."
 npm run build:desktop --prefix admin
 
@@ -30,9 +33,13 @@ mkdir -p releases
 cp "$DMG" releases/coinwallet-macos.dmg
 echo "Copied to releases/coinwallet-macos.dmg"
 
+bash scripts/sign-release-mac.sh "releases/coinwallet-macos.dmg"
+
 VERSION=$(python -c "import json; print(json.load(open('src-tauri/tauri.conf.json'))['version'])")
 powershell.exe -File scripts/update-releases-manifest.ps1 -Version "$VERSION" -MarkAvailable 2>/dev/null \
   || pwsh -File scripts/update-releases-manifest.ps1 -Version "$VERSION" -MarkAvailable 2>/dev/null \
   || python scripts/update_releases_manifest.py --version "$VERSION" --mark-available
+
+bash scripts/finalize-release.sh
 
 echo "Done."

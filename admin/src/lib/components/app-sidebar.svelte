@@ -36,6 +36,7 @@
 		{ href: '/wallets', label: 'Wallets', icon: WalletIcon },
 		{ href: '/receive', label: 'Receive', icon: ArrowDownToLineIcon },
 		{ href: '/send', label: 'Send', icon: ArrowUpFromLineIcon },
+		{ href: '/swap', label: 'Swap', icon: ArrowLeftRightIcon },
 		{ href: '/utxos', label: 'Coin Control', icon: CoinsIcon },
 		{ href: '/transactions', label: 'Transactions', icon: ArrowLeftRightIcon },
 		{ href: '/privacy', label: 'Privacy', icon: ShieldIcon },

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from api.auth import AuthUser, get_db, hash_password, require_admin
 from src.database import WalletDatabase, USER_ROLES
 from src.wallet.backend import get_backend
+from src.wallet.vault import configure_unlock_ttl
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -30,6 +31,9 @@ class UpdateSettingsRequest(BaseModel):
     tor_enabled: Optional[bool] = None
     coordinator_uri: Optional[str] = None
     allow_mainnet: Optional[bool] = None
+    mainnet_enable_acknowledged: Optional[bool] = None
+    xmr_wallet_rpc_uri: Optional[str] = None
+    wallet_unlock_ttl: Optional[int] = Field(default=None, ge=60, le=86_400)
 
 
 @router.get("/users")
@@ -149,6 +153,13 @@ def update_settings(
     db: WalletDatabase = Depends(get_db),
 ):
     if body.network is not None:
+        if body.network == "mainnet":
+            allowed = db.get_setting("allow_mainnet", "false").lower() == "true"
+            if not allowed:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Enable allow_mainnet before setting default network to mainnet",
+                )
         db.set_setting("network", body.network)
     if body.backend_uri is not None:
         db.set_setting("backend_uri", body.backend_uri.strip())
@@ -159,7 +170,33 @@ def update_settings(
     if body.coordinator_uri is not None:
         db.set_setting("coordinator_uri", body.coordinator_uri.strip())
     if body.allow_mainnet is not None:
+        if body.allow_mainnet and not body.mainnet_enable_acknowledged:
+            raise HTTPException(
+                status_code=400,
+                detail="Enable mainnet requires mainnet_enable_acknowledged=true",
+            )
+        was_allowed = db.get_setting("allow_mainnet", "false").lower() == "true"
         db.set_setting("allow_mainnet", "true" if body.allow_mainnet else "false")
+        if body.allow_mainnet and not was_allowed:
+            db.add_audit(
+                "MAINNET_ENABLED",
+                user_id=admin.id,
+                details="admin enabled allow_mainnet",
+            )
+        if not body.allow_mainnet:
+            db.set_setting("mainnet_enabled_at", "")
+        elif body.mainnet_enable_acknowledged:
+            from datetime import datetime, timezone
+
+            db.set_setting(
+                "mainnet_enabled_at",
+                datetime.now(timezone.utc).isoformat(),
+            )
+    if body.xmr_wallet_rpc_uri is not None:
+        db.set_setting("xmr_wallet_rpc_uri", body.xmr_wallet_rpc_uri.strip())
+    if body.wallet_unlock_ttl is not None:
+        configure_unlock_ttl(body.wallet_unlock_ttl)
+        db.set_setting("wallet_unlock_ttl", str(body.wallet_unlock_ttl))
 
     db.add_audit("SETTINGS_UPDATED", user_id=admin.id, details="system settings changed")
     return db.get_system_settings()

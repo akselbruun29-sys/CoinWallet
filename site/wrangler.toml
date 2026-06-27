@@ -1,0 +1,6 @@
+# Cloudflare Pages project for the CoinWallet download site.
+# Deploy: GitHub Actions (see .github/workflows/deploy-site.yml) or:
+#   cd site && npm run build && npx wrangler pages deploy build --project-name=coinwallet
+name = "coinwallet"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = "build"

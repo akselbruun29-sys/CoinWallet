@@ -2,7 +2,8 @@ import { balanceTips, explainRecentTransactions, formatBalanceBrief } from './ba
 import { feeTips, formatFeeBrief } from './fees';
 import { BITCOIN_FAQ } from './faq';
 import { formatPrivacyBrief, privacyTips } from './privacy';
-import { securityChecklist } from './security';
+import { securityCheckItems, securityChecklist, securityChecklistSummary } from './security';
+import { formatSwapBrief, swapHistoryTips, swapTips } from './swap';
 import type { AdvisorContext, AdvisorReport, AdvisorSection } from './types';
 
 const INTRO =
@@ -36,8 +37,9 @@ export function runAdvisor(ctx: AdvisorContext): AdvisorReport {
 	sections.push({
 		id: 'security',
 		title: 'Security checklist',
-		summary: 'Passphrase, backup, and network posture for this session.',
-		tips: securityChecklist(ctx.security, ctx.network ?? ctx.status?.network)
+		summary: securityChecklistSummary(ctx.security, ctx.network ?? ctx.status?.network, ctx.settings),
+		checklist: securityCheckItems(ctx.security, ctx.network ?? ctx.status?.network, ctx.settings),
+		tips: securityChecklist(ctx.security, ctx.network ?? ctx.status?.network, ctx.settings)
 	});
 
 	if (ctx.sendPreview) {
@@ -47,6 +49,27 @@ export function runAdvisor(ctx: AdvisorContext): AdvisorReport {
 			summary: formatFeeBrief(ctx.sendPreview),
 			tips: feeTips(ctx.sendPreview)
 		});
+	}
+
+	if (ctx.swapQuote) {
+		sections.push({
+			id: 'swap',
+			title: 'Swap review',
+			summary: formatSwapBrief(ctx.swapQuote),
+			tips: swapTips(ctx.swapQuote)
+		});
+	}
+
+	if (ctx.swapHistory?.length) {
+		const historyTips = swapHistoryTips(ctx.swapHistory);
+		if (historyTips.length) {
+			sections.push({
+				id: 'swap-history',
+				title: 'Open swaps',
+				summary: 'Pending swaps need your outbound transaction.',
+				tips: historyTips
+			});
+		}
 	}
 
 	return {

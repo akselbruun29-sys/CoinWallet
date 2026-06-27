@@ -1,12 +1,13 @@
 """Wallet API routes."""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from api.auth import AuthUser, get_current_user, get_db
 from api.events import publish_wallet_event
 from api.leaderboard import push_leaderboard_balance
+from api.rate_limit import check_rate_limit
 from api.security import require_wallet_unlocked
 from src.database import WalletDatabase
 from src.wallet.core import WalletService
@@ -20,13 +21,15 @@ def _wallet_service(db: WalletDatabase = Depends(get_db)) -> WalletService:
 
 class CreateWalletRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
-    network: str = Field(default="testnet", pattern="^(testnet|signet|regtest|mainnet)$")
+    network: Optional[str] = None
+    asset_type: str = Field(default="btc", pattern="^(btc|xmr)$")
 
 
 class ImportWalletRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
     mnemonic: str = Field(..., min_length=12)
-    network: str = Field(default="testnet", pattern="^(testnet|signet|regtest|mainnet)$")
+    network: Optional[str] = None
+    asset_type: str = Field(default="btc", pattern="^(btc|xmr)$")
 
 
 class UpdateUtxoRequest(BaseModel):
@@ -53,10 +56,14 @@ class LabelRequest(BaseModel):
 
 @router.get("")
 def list_wallets(
+    asset_type: Optional[str] = None,
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
-    return db.list_wallets(user.id)
+    try:
+        return db.list_wallets(user.id, asset_type=asset_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("")
@@ -68,11 +75,18 @@ def create_wallet(
     service: WalletService = Depends(_wallet_service),
 ):
     try:
-        wallet_id, mnemonic = service.create_wallet_with_keys(
-            user.id, body.name, network=body.network
-        )
+        if body.asset_type == "xmr":
+            network = body.network or "stagenet"
+            wallet_id, mnemonic = service.create_xmr_wallet_with_keys(
+                user.id, body.name, network=network
+            )
+        else:
+            network = body.network or "testnet"
+            wallet_id, mnemonic = service.create_wallet_with_keys(
+                user.id, body.name, network=network
+            )
     except ValueError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     db.add_audit(
         "WALLET_CREATED",
@@ -93,9 +107,16 @@ def import_wallet(
     service: WalletService = Depends(_wallet_service),
 ):
     try:
-        wallet_id = service.import_wallet_with_mnemonic(
-            user.id, body.name, body.mnemonic, network=body.network
-        )
+        if body.asset_type == "xmr":
+            network = body.network or "stagenet"
+            wallet_id = service.import_xmr_wallet_with_mnemonic(
+                user.id, body.name, body.mnemonic, network=network
+            )
+        else:
+            network = body.network or "testnet"
+            wallet_id = service.import_wallet_with_mnemonic(
+                user.id, body.name, body.mnemonic, network=network
+            )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -227,13 +248,16 @@ def wallet_transactions(
 @router.get("/{wallet_id}/receive-address")
 def receive_address(
     wallet_id: int,
+    subaddress: bool = Query(default=True, description="Create subaddress (false = primary)"),
     user: AuthUser = Depends(require_wallet_unlocked),
     db: WalletDatabase = Depends(get_db),
     service: WalletService = Depends(_wallet_service),
 ):
     _get_wallet_or_404(wallet_id, user, db)
     try:
-        return service.get_receive_address(wallet_id, user.id)
+        return service.get_receive_address(
+            wallet_id, user.id, subaddress=subaddress
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -298,6 +322,7 @@ def send_funds(
     service: WalletService = Depends(_wallet_service),
 ):
     _get_wallet_or_404(wallet_id, user, db)
+    check_rate_limit(request, "send")
     try:
         result = service.send(
             wallet_id,
@@ -329,6 +354,14 @@ def export_wallet(
     db: WalletDatabase = Depends(get_db),
 ):
     wallet = _get_wallet_or_404(wallet_id, user, db)
+    if wallet.get("asset_type") == "xmr":
+        return {
+            "id": wallet["id"],
+            "name": wallet["name"],
+            "network": wallet["network"],
+            "asset_type": "xmr",
+            "primary_address": wallet.get("xmr_primary_address"),
+        }
     return {
         "id": wallet["id"],
         "name": wallet["name"],

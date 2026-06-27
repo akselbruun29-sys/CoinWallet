@@ -25,6 +25,7 @@
 		'/wallets': 'Wallets',
 		'/receive': 'Receive',
 		'/send': 'Send',
+		'/swap': 'Swap',
 		'/utxos': 'Coin Control',
 		'/transactions': 'Transactions',
 		'/privacy': 'Privacy',
@@ -55,9 +56,26 @@
 		}
 		load();
 		connectWalletEvents();
+
+		async function lockOnBackground() {
+			if (document.visibilityState !== 'hidden') return;
+			try {
+				await api.lockWallet();
+				await refreshWalletSecurity();
+			} catch {
+				// ignore — session may already be gone
+			}
+		}
+
+		const onVisibility = () => {
+			void lockOnBackground();
+		};
+		document.addEventListener('visibilitychange', onVisibility);
+
 		const id = setInterval(load, 10000);
 		const unsub = appRefreshTick.subscribe(() => load());
 		return () => {
+			document.removeEventListener('visibilitychange', onVisibility);
 			clearInterval(id);
 			unsub();
 			disconnectWalletEvents();

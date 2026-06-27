@@ -36,7 +36,7 @@ if ($apiRunning -and (Test-ApiHealthy)) {
     Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "Set-Location '$PSScriptRoot'; .\venv\Scripts\uvicorn api.main:app --reload --port $ApiPort"
+        "Set-Location '$PSScriptRoot'; .\venv\Scripts\uvicorn api.main:app --reload --host 127.0.0.1 --port $ApiPort"
     ) -WindowStyle Normal
     Write-Host "Started API on http://127.0.0.1:$ApiPort" -ForegroundColor Green
 }

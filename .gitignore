@@ -11,9 +11,16 @@ dist/
 .eggs/
 *.db
 *.db-journal
+*.cwenc
 logs/
 *.log
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+
+# Desktop release binaries (sync to site/static via scripts/sync-site-releases.mjs before deploy)
+releases/*.exe
+releases/*.dmg
+site/static/releases/*.exe
+site/static/releases/*.dmg

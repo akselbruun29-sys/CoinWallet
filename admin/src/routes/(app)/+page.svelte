@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api, type StatusResponse, type Wallet, type Balance } from '$lib/api';
 	import { activeWalletId, setActiveWalletId, validateActiveWallet, isWalletSynced } from '$lib/stores/wallet';
-	import { formatBtc, formatSats } from '$lib/utils';
+	import { formatBtc, formatSats, formatWalletBalance, assetLabel } from '$lib/utils';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -14,17 +14,23 @@
 	let status: StatusResponse | null = $state(null);
 	let wallets: Wallet[] = $state([]);
 	let balances: Record<number, Balance> = $state({});
-	let totalSats = $state(0);
+	let totalBtcSats = $state(0);
+	let totalXmrAtomic = $state(0);
 
 	async function load() {
 		status = await api.status();
 		wallets = status.wallets;
-		let sum = 0;
+		let btcSum = 0;
+		let xmrSum = 0;
 		const entries = await Promise.all(
 			wallets.map(async (w) => {
 				try {
 					const b = await api.walletBalance(w.id);
-					sum += b.total_sats;
+					if (w.asset_type === 'xmr') {
+						xmrSum += b.total_sats;
+					} else {
+						btcSum += b.total_sats;
+					}
 					return [w.id, b] as const;
 				} catch {
 					return [w.id, { confirmed_sats: 0, unconfirmed_sats: 0, total_sats: 0 }] as const;
@@ -32,7 +38,8 @@
 			})
 		);
 		balances = Object.fromEntries(entries);
-		totalSats = sum;
+		totalBtcSats = btcSum;
+		totalXmrAtomic = xmrSum;
 		validateActiveWallet(wallets);
 	}
 
@@ -47,9 +54,15 @@
 			<Card.Title class="text-sm font-medium text-muted-foreground">Total Balance</Card.Title>
 		</Card.Header>
 		<Card.Content>
-			<p class="text-xl font-bold text-success sm:text-2xl">{formatBtc(totalSats)}</p>
-			{#if totalSats > 0}
-				<p class="text-sm text-muted-foreground">{formatSats(totalSats)} sats</p>
+			{#if totalBtcSats > 0}
+				<p class="text-xl font-bold text-success sm:text-2xl">{formatBtc(totalBtcSats)}</p>
+				<p class="text-sm text-muted-foreground">{formatSats(totalBtcSats)} sats</p>
+			{/if}
+			{#if totalXmrAtomic > 0}
+				<p class="text-xl font-bold text-success sm:text-2xl {totalBtcSats > 0 ? 'mt-2' : ''}">{formatWalletBalance('xmr', totalXmrAtomic)}</p>
+			{/if}
+			{#if totalBtcSats === 0 && totalXmrAtomic === 0}
+				<p class="text-xl font-bold text-success sm:text-2xl">0.00 BTC</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>
@@ -137,7 +150,12 @@
 							onclick={() => setActiveWalletId(wallet.id)}
 						>
 							<div>
-								<p class="font-medium">{wallet.name}</p>
+								<div class="flex items-center gap-2">
+									<p class="font-medium">{wallet.name}</p>
+									<Badge variant={wallet.asset_type === 'xmr' ? 'default' : 'secondary'} class="text-xs">
+										{assetLabel(wallet.asset_type)}
+									</Badge>
+								</div>
 								<div class="mt-1 flex items-center gap-2">
 									<p class="text-sm capitalize text-muted-foreground">{wallet.network}</p>
 									{#if isWalletSynced(wallet)}
@@ -147,7 +165,7 @@
 									{/if}
 								</div>
 							</div>
-							<p class="font-mono text-sm text-success">{formatBtc(balances[wallet.id]?.total_sats ?? 0)}</p>
+							<p class="font-mono text-sm text-success">{formatWalletBalance(wallet.asset_type, balances[wallet.id]?.total_sats ?? 0)}</p>
 						</button>
 					</li>
 				{/each}

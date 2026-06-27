@@ -1,0 +1,212 @@
+name: Release desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver written to releases.json
+        required: true
+        default: "0.1.0"
+      mark_available:
+        description: Mark built platforms available on the download page
+        type: boolean
+        default: false
+      release_notes:
+        description: Short release notes for releases.json
+        required: false
+        default: ""
+
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Pre-release security gate
+        run: python scripts/verify_release_security.py
+
+      - name: Build admin UI (desktop)
+        working-directory: admin
+        run: |
+          npm ci
+          npm run build:desktop
+
+      - name: Build Tauri (Windows)
+        run: cargo tauri build
+
+      - name: Stage Windows artifact
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD "src-tauri/target/release/coinwallet.exe"
+          if (-not (Test-Path $exe)) { throw "Missing $exe" }
+          New-Item -ItemType Directory -Force -Path releases | Out-Null
+          Copy-Item $exe releases/coinwallet-windows-x64.exe -Force
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinwallet-windows-x64
+          path: releases/coinwallet-windows-x64.exe
+          retention-days: 14
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Pre-release security gate
+        run: python scripts/verify_release_security.py
+
+      - name: Build admin UI (desktop)
+        working-directory: admin
+        run: |
+          npm ci
+          npm run build:desktop
+
+      - name: Build Tauri (macOS)
+        run: cargo tauri build
+
+      - name: Stage macOS artifact
+        run: |
+          DMG=$(find src-tauri/target/release/bundle/dmg -name '*.dmg' | head -n 1)
+          test -n "$DMG"
+          mkdir -p releases
+          cp "$DMG" releases/coinwallet-macos.dmg
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coinwallet-macos-dmg
+          path: releases/coinwallet-macos.dmg
+          retention-days: 14
+
+  publish-manifest:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifact-downloads
+
+      - name: Copy artifacts into releases/
+        run: |
+          mkdir -p releases
+          cp artifact-downloads/coinwallet-windows-x64/coinwallet-windows-x64.exe releases/ || true
+          cp artifact-downloads/coinwallet-macos-dmg/coinwallet-macos.dmg releases/ || true
+          ls -la releases/
+
+      - name: Update releases.json
+        env:
+          INPUT_MARK_AVAILABLE: ${{ inputs.mark_available }}
+        run: |
+          args=(--version "${{ inputs.version }}")
+          if [[ -n "${{ inputs.release_notes }}" ]]; then
+            args+=(--release-notes "${{ inputs.release_notes }}")
+          fi
+          if [[ "$INPUT_MARK_AVAILABLE" == "true" ]]; then
+            args+=(--mark-available)
+          fi
+          python scripts/update_releases_manifest.py "${args[@]}"
+
+      - name: Verify manifest hashes
+        run: python scripts/verify-release-manifest.py
+
+      - name: Sync site static releases
+        run: node scripts/sync-site-releases.mjs
+
+      - name: Build download site
+        working-directory: site
+        env:
+          VITE_PUBLIC_API_URL: ${{ vars.VITE_PUBLIC_API_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload releases bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: releases-bundle
+          path: |
+            releases/
+            site/static/releases/
+            site/build/
+          retention-days: 14
+
+  deploy-site:
+    needs: publish-manifest
+    runs-on: ubuntu-latest
+    if: inputs.mark_available
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download site build
+        uses: actions/download-artifact@v4
+        with:
+          name: releases-bundle
+          path: artifact
+
+      - name: Restore site build output
+        run: |
+          mkdir -p site/build
+          cp -r artifact/site/build/. site/build/
+          ls -la site/build/releases/ || true
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: pages deploy build --project-name=coinwallet

@@ -1,7 +1,9 @@
 # Update releases/releases.json with SHA-256 hashes for built artifacts.
 param(
     [string]$Version = "0.1.0",
-    [switch]$MarkAvailable
+    [switch]$MarkAvailable,
+    [string]$SignatureStatus = "",
+    [string]$ReleaseNotes = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,10 +18,18 @@ if (-not (Test-Path $ManifestPath)) {
 $manifest = Get-Content $ManifestPath -Raw | ConvertFrom-Json
 $manifest.version = $Version
 $manifest.released_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+if ($ReleaseNotes) {
+    $manifest.release_notes = $ReleaseNotes
+}
+
+$globalFingerprint = $env:RELEASE_SIGNER_FINGERPRINT
+if ($globalFingerprint) {
+    $manifest.signer_fingerprint = $globalFingerprint
+}
 
 function Set-PlatformArtifact($platformKey, $filePath, $urlPath) {
     if (-not (Test-Path $filePath)) {
-        Write-Host "Skip $platformKey — not found: $filePath" -ForegroundColor Yellow
+        Write-Host "Skip $platformKey - not found: $filePath" -ForegroundColor Yellow
         return
     }
     $hash = (Get-FileHash -Path $filePath -Algorithm SHA256).Hash.ToLower()
@@ -28,14 +38,34 @@ function Set-PlatformArtifact($platformKey, $filePath, $urlPath) {
     if ($MarkAvailable) {
         $manifest.platforms.$platformKey.available = $true
     }
-    Write-Host "Updated $platformKey — SHA-256 $hash"
+
+    $sig = Get-AuthenticodeSignature -FilePath $filePath -ErrorAction SilentlyContinue
+    if ($sig -and $sig.SignerCertificate) {
+        $manifest.platforms.$platformKey.signature_status = "signed"
+        $manifest.platforms.$platformKey.signer_fingerprint = $sig.SignerCertificate.Thumbprint
+        if (-not $manifest.signer_fingerprint) {
+            $manifest.signer_fingerprint = $sig.SignerCertificate.Thumbprint
+        }
+    } elseif ($SignatureStatus) {
+        $manifest.platforms.$platformKey.signature_status = $SignatureStatus
+    } elseif (-not $manifest.platforms.$platformKey.signature_status) {
+        $manifest.platforms.$platformKey.signature_status = "unsigned"
+    }
+
+    $envFp = (Get-Item "env:RELEASE_SIGNER_FINGERPRINT_$($platformKey.ToUpper())" -ErrorAction SilentlyContinue).Value
+    if ($envFp) {
+        $manifest.platforms.$platformKey.signer_fingerprint = $envFp
+    }
+
+    Write-Host "Updated $platformKey - SHA-256 $hash status=$($manifest.platforms.$platformKey.signature_status)"
 }
 
 $releasesDir = Join-Path $Root "releases"
 Set-PlatformArtifact "windows" (Join-Path $releasesDir "coinwallet-windows-x64.exe") "/releases/coinwallet-windows-x64.exe"
 Set-PlatformArtifact "macos" (Join-Path $releasesDir "coinwallet-macos.dmg") "/releases/coinwallet-macos.dmg"
 
-$json = $manifest | ConvertTo-Json -Depth 6
-Set-Content -Path $ManifestPath -Value $json -Encoding UTF8
-Set-Content -Path $SiteManifestPath -Value $json -Encoding UTF8
+$json = $manifest | ConvertTo-Json -Depth 8
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($ManifestPath, $json + "`n", $utf8NoBom)
+[System.IO.File]::WriteAllText($SiteManifestPath, $json + "`n", $utf8NoBom)
 Write-Host "Manifest written to releases/ and site/static/releases/"

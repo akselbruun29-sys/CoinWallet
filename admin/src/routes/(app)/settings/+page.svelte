@@ -24,6 +24,9 @@
 	let coordinatorUri = $state('');
 	let torEnabled = $state(false);
 	let allowMainnet = $state(false);
+	let mainnetEnableAck = $state(false);
+	let xmrWalletRpcUri = $state('');
+	let walletUnlockTtl = $state('900');
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -46,6 +49,8 @@
 		coordinatorUri = s.coordinator_uri ?? '';
 		torEnabled = s.tor_enabled === 'true';
 		allowMainnet = s.allow_mainnet === 'true';
+		xmrWalletRpcUri = s.xmr_wallet_rpc_uri ?? '';
+		walletUnlockTtl = s.wallet_unlock_ttl ?? '900';
 	}
 
 	async function load() {
@@ -82,10 +87,14 @@
 					backend_uri: backendUri,
 					tor_enabled: torEnabled,
 					coordinator_uri: coordinatorUri,
-					allow_mainnet: allowMainnet
+					allow_mainnet: allowMainnet,
+					mainnet_enable_acknowledged: allowMainnet ? mainnetEnableAck : undefined,
+					xmr_wallet_rpc_uri: xmrWalletRpcUri,
+					wallet_unlock_ttl: parseInt(walletUnlockTtl, 10)
 				})
 			);
 			saved = true;
+			if (!allowMainnet) mainnetEnableAck = false;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to save settings';
 		} finally {
@@ -222,6 +231,11 @@
 	<Card.Root>
 		<Card.Header><Card.Title>Network</Card.Title></Card.Header>
 		<Card.Content class="space-y-4 text-sm">
+			<p class="text-muted-foreground">
+				Bitcoin defaults to testnet. New Monero wallets default to <strong>stagenet</strong> — use
+				<code class="text-xs">scripts/start-xmr-wallet-rpc.ps1</code> for local sync. Mainnet for either
+				asset requires explicit enable in Security and admin settings.
+			</p>
 			{#if settings.allow_mainnet === 'true' || settings.network === 'mainnet'}
 				<Alert.Root variant="destructive">
 					<AlertTriangleIcon class="size-4" />
@@ -264,6 +278,30 @@
 						<Label for="coordinator-uri">Coordinator URI</Label>
 						<Input id="coordinator-uri" bind:value={coordinatorUri} placeholder="Optional" />
 					</div>
+					<div class="space-y-2">
+						<Label for="xmr-rpc">Monero wallet-rpc URI</Label>
+						<Input
+							id="xmr-rpc"
+							bind:value={xmrWalletRpcUri}
+							placeholder="http://127.0.0.1:38088/json_rpc (stagenet default)"
+						/>
+						<p class="text-xs text-muted-foreground">
+							XMR wallets default to stagenet. Point this at your local monero-wallet-rpc sidecar.
+						</p>
+					</div>
+					<div class="space-y-2">
+						<Label for="unlock-ttl">Wallet auto-lock idle timeout (seconds)</Label>
+						<Input
+							id="unlock-ttl"
+							type="number"
+							min={60}
+							max={86400}
+							bind:value={walletUnlockTtl}
+						/>
+						<p class="text-xs text-muted-foreground">
+							Lock the wallet after this many seconds without API activity (60–86400). Default 900 (15 min).
+						</p>
+					</div>
 					<div class="flex items-center gap-2">
 						<Checkbox id="tor" bind:checked={torEnabled} />
 						<Label for="tor" class="font-normal">Enable Tor proxy</Label>
@@ -272,18 +310,42 @@
 						<Checkbox id="mainnet" bind:checked={allowMainnet} />
 						<Label for="mainnet" class="font-normal">Allow mainnet wallets</Label>
 					</div>
+					{#if allowMainnet && settings.allow_mainnet !== 'true'}
+						<Alert.Root variant="destructive">
+							<AlertTriangleIcon class="size-4" />
+							<Alert.Title>Mainnet release acknowledgment</Alert.Title>
+							<Alert.Description class="space-y-3">
+								<p>
+									Enabling mainnet allows real bitcoin on this instance. Users must set a wallet
+									passphrase, migrate to v2 encryption, and acknowledge risks individually.
+								</p>
+								<div class="flex items-start gap-2">
+									<Checkbox id="mainnet-admin-ack" bind:checked={mainnetEnableAck} />
+									<Label for="mainnet-admin-ack" class="font-normal leading-snug">
+										I understand this enables mainnet wallets and real funds at risk on this server.
+									</Label>
+								</div>
+							</Alert.Description>
+						</Alert.Root>
+					{/if}
 					{#if error}
 						<p class="text-destructive">{error}</p>
 					{/if}
 					{#if saved}
 						<p class="text-success">Settings saved.</p>
 					{/if}
-					<Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save settings'}</Button>
+					<Button type="submit" disabled={saving || (allowMainnet && settings.allow_mainnet !== 'true' && !mainnetEnableAck)}>
+						{saving ? 'Saving...' : 'Save settings'}
+					</Button>
 				</form>
 			{:else}
 				<p><span class="text-muted-foreground">Bitcoin network:</span> {settings.network ?? 'testnet'}</p>
 				<p><span class="text-muted-foreground">Mainnet wallets:</span> {settings.allow_mainnet === 'true' ? 'Allowed' : 'Blocked'}</p>
 				<p><span class="text-muted-foreground">Tor:</span> {settings.tor_enabled === 'true' ? 'Enabled' : 'Disabled'}</p>
+				<p>
+					<span class="text-muted-foreground">Wallet auto-lock:</span>
+					{settings.wallet_unlock_ttl ?? '900'}s idle
+				</p>
 				<p><span class="text-muted-foreground">Backend type:</span> {settings.backend_type ?? 'esplora'}</p>
 				<p><span class="text-muted-foreground">Backend URI:</span> {settings.backend_uri || 'Not configured'}</p>
 			{/if}

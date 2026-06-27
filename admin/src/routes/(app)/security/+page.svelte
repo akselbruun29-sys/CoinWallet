@@ -17,6 +17,9 @@
 	let setupPass = $state('');
 	let unlockPass = $state('');
 	let migratePass = $state('');
+	let mainnetAckSaving = $state(false);
+	let mainnetAckError = $state('');
+	let allowMainnet = $state(false);
 	let error = $state('');
 	let saved = $state(false);
 	let loading = $state(false);
@@ -25,6 +28,25 @@
 
 	async function load() {
 		await refreshWalletSecurity();
+		try {
+			const s = await api.settings();
+			allowMainnet = s.allow_mainnet === 'true';
+		} catch {
+			allowMainnet = false;
+		}
+	}
+
+	async function acknowledgeMainnet() {
+		mainnetAckSaving = true;
+		mainnetAckError = '';
+		try {
+			await api.acknowledgeMainnetRisks();
+			await load();
+		} catch (err) {
+			mainnetAckError = err instanceof Error ? err.message : 'Acknowledgment failed';
+		} finally {
+			mainnetAckSaving = false;
+		}
 	}
 
 	async function setup(e: Event) {
@@ -114,6 +136,12 @@
 						Locked
 					{/if}
 				</p>
+				{#if security.unlocked && security.expires_at}
+					<p class="text-muted-foreground">
+						Session expires {new Date(security.expires_at * 1000).toLocaleTimeString()} (idle timeout
+						{Math.round((security.unlock_ttl_seconds ?? 900) / 60)} min)
+					</p>
+				{/if}
 				{#if security.legacy_wallet_count > 0}
 					<Alert.Root>
 						<Alert.Title>Legacy wallets detected</Alert.Title>
@@ -201,6 +229,40 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	{#if allowMainnet}
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Mainnet acknowledgment</Card.Title>
+				<Card.Description>
+					Required before creating or sending on mainnet. Wallet must be unlocked with v2 encryption.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-3 text-sm">
+				{#if security?.mainnet_acknowledged}
+					<p class="text-success">
+						Mainnet risks acknowledged
+						{#if security.mainnet_ack_at}
+							<span class="text-muted-foreground">({security.mainnet_ack_at.slice(0, 19)} UTC)</span>
+						{/if}
+					</p>
+				{:else if security?.unlocked}
+					<p class="text-muted-foreground">
+						Mainnet is enabled on this instance. Acknowledge that real bitcoin is at risk and that
+						you are responsible for backups and transaction verification.
+					</p>
+					{#if mainnetAckError}
+						<p class="text-destructive">{mainnetAckError}</p>
+					{/if}
+					<Button disabled={mainnetAckSaving} onclick={acknowledgeMainnet}>
+						{mainnetAckSaving ? 'Saving...' : 'I understand — enable mainnet for my account'}
+					</Button>
+				{:else}
+					<p class="text-warning">Unlock your wallet to acknowledge mainnet risks.</p>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{/if}
 
 	{#if security?.has_wallet_passphrase}
 		<Card.Root>

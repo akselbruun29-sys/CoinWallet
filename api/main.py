@@ -1,5 +1,6 @@
 """FastAPI control plane for the Bitcoin wallet platform."""
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -14,6 +15,7 @@ from api.events import router as events_router
 from api.security import router as security_router
 from api.auth import (
     AuthUser,
+    SESSION_IDLE_SECONDS,
     clear_session_cookie,
     create_session_token,
     get_any_authenticated_user,
@@ -26,33 +28,86 @@ from api.auth import (
 )
 from api.rate_limit import check_rate_limit
 from api.leaderboard import router as leaderboard_router
+from api.middleware import (
+    CsrfOriginMiddleware,
+    LocalhostOnlyMiddleware,
+    SecurityHeadersMiddleware,
+    SessionActivityMiddleware,
+    WalletActivityMiddleware,
+)
+from api.swap import router as swap_router
 from api.wallet import router as wallet_router
 from src.config import validate_secrets
 from src.database import WalletDatabase
 from src.wallet.core import WalletService
+from src.wallet.vault import configure_unlock_ttl, lock_user
 
 load_dotenv()
 
 validate_secrets()
 
-app = FastAPI(title="Wallet Vault API", version="0.2.0")
+
+def _apply_wallet_unlock_ttl(db: WalletDatabase) -> None:
+    raw = (db.get_setting("wallet_unlock_ttl") or "").strip()
+    if raw:
+        try:
+            configure_unlock_ttl(int(raw))
+        except ValueError:
+            pass
+
+
+_db_bootstrap = WalletDatabase()
+_apply_wallet_unlock_ttl(_db_bootstrap)
+_DB_PATH = _db_bootstrap.db_path
+
+
+@asynccontextmanager
+async def _lifespan(_app):
+    yield
+    from src.db_at_rest import seal_db_path
+
+    seal_db_path(_DB_PATH)
+
+
+_DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+]
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("CORS_ORIGINS", "").strip()
+    if not raw:
+        return _DEFAULT_CORS_ORIGINS
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    if "*" in origins:
+        raise RuntimeError(
+            "CORS_ORIGINS cannot include '*' when allow_credentials is enabled"
+        )
+    return origins
+
+
+app = FastAPI(title="Wallet Vault API", version="0.2.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(LocalhostOnlyMiddleware)
+app.add_middleware(CsrfOriginMiddleware)
+app.add_middleware(SessionActivityMiddleware)
+app.add_middleware(WalletActivityMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(wallet_router)
+app.include_router(swap_router)
 app.include_router(leaderboard_router)
 app.include_router(admin_router)
 app.include_router(events_router)
@@ -118,6 +173,10 @@ def auth_config():
     return {
         "open_registration": os.getenv("OPEN_REGISTRATION", "false").lower() == "true",
         "auto_approve_users": os.getenv("AUTO_APPROVE_USERS", "true").lower() == "true",
+        "session_idle_seconds": SESSION_IDLE_SECONDS,
+        "session_max_age_days": 7,
+        "csrf_model": "samesite_lax_plus_origin_check",
+        "auth_primary": "bearer_token",
     }
 
 
@@ -156,14 +215,25 @@ def login(
     check_rate_limit(request, "login")
     password_hash = db.get_user_password_hash(body.username)
     if not password_hash or not verify_password(body.password, password_hash):
+        db.add_audit(
+            "LOGIN_FAILED",
+            details=f"username={body.username}",
+            ip=_client_ip(request),
+        )
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     user = db.get_user_by_username(body.username)
     if not user:
+        db.add_audit(
+            "LOGIN_FAILED",
+            details=f"username={body.username}",
+            ip=_client_ip(request),
+        )
         raise HTTPException(status_code=401, detail="Invalid username or password")
     if not user["is_active"]:
         raise HTTPException(status_code=403, detail="Account disabled")
 
+    lock_user(user["id"])
     token = create_session_token(user["id"], user["username"], user["role"])
     set_session_cookie(response, token)
     db.update_last_login(user["id"])
@@ -183,6 +253,7 @@ def logout(
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
+    lock_user(user.id)
     clear_session_cookie(response)
     db.add_audit("USER_LOGOUT", user_id=user.id)
     return {"status": "logged_out"}
@@ -262,4 +333,5 @@ def settings(user: AuthUser = Depends(get_current_user), db: WalletDatabase = De
         "network": all_settings.get("network", "testnet"),
         "tor_enabled": all_settings.get("tor_enabled", "false"),
         "allow_mainnet": all_settings.get("allow_mainnet", "false"),
+        "wallet_unlock_ttl": all_settings.get("wallet_unlock_ttl", "900"),
     }

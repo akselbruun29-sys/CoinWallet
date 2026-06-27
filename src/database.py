@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 USER_ROLES = ("admin", "user", "pending")
+ASSET_TYPES = ("btc", "xmr")
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,10 @@ class WalletDatabase:
     def __init__(self, db_path: Optional[str] = None):
         import os
 
-        self.db_path = Path(db_path or os.getenv("WALLET_DB", "wallet.db"))
+        from src.db_at_rest import prepare_db_path
+
+        raw_path = Path(db_path or os.getenv("WALLET_DB", "wallet.db"))
+        self.db_path = prepare_db_path(raw_path)
         self._init_db()
         self._seed_admin_from_env()
         logger.info("Database initialized at %s", self.db_path)
@@ -132,6 +136,34 @@ class WalletDatabase:
                 )
             """)
 
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS swaps (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    quote_id TEXT NOT NULL,
+                    provider_id TEXT NOT NULL,
+                    from_asset TEXT NOT NULL,
+                    to_asset TEXT NOT NULL,
+                    send_amount_atomic INTEGER NOT NULL,
+                    receive_amount_atomic INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'awaiting_deposit',
+                    deposit_address TEXT,
+                    deposit_amount_atomic INTEGER,
+                    destination_wallet_id INTEGER,
+                    provider_ref TEXT,
+                    from_txid TEXT,
+                    to_txid TEXT,
+                    from_network TEXT,
+                    to_network TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    settled_at DATETIME,
+                    expires_at DATETIME,
+                    raw_json TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (destination_wallet_id) REFERENCES wallets(id)
+                )
+            """)
+
             conn.commit()
             self._migrate_schema(conn)
 
@@ -156,11 +188,70 @@ class WalletDatabase:
             conn.execute("ALTER TABLE users ADD COLUMN wallet_key_salt TEXT")
         if "wallet_key_verifier" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN wallet_key_verifier TEXT")
+        if "mainnet_ack_at" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN mainnet_ack_at DATETIME")
 
         if "encryption_version" not in wallet_cols:
             conn.execute(
                 "ALTER TABLE wallets ADD COLUMN encryption_version INTEGER DEFAULT 1"
             )
+        if "asset_type" not in wallet_cols:
+            conn.execute(
+                "ALTER TABLE wallets ADD COLUMN asset_type TEXT NOT NULL DEFAULT 'btc'"
+            )
+            conn.execute(
+                "UPDATE wallets SET asset_type = 'btc' WHERE asset_type IS NULL OR asset_type = ''"
+            )
+        if "xmr_primary_address" not in wallet_cols:
+            conn.execute("ALTER TABLE wallets ADD COLUMN xmr_primary_address TEXT")
+        if "xmr_restore_height" not in wallet_cols:
+            conn.execute(
+                "ALTER TABLE wallets ADD COLUMN xmr_restore_height INTEGER DEFAULT 0"
+            )
+        if "xmr_account_index" not in wallet_cols:
+            conn.execute(
+                "ALTER TABLE wallets ADD COLUMN xmr_account_index INTEGER DEFAULT 0"
+            )
+        if "xmr_encrypted_view_key" not in wallet_cols:
+            conn.execute("ALTER TABLE wallets ADD COLUMN xmr_encrypted_view_key TEXT")
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS swaps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                quote_id TEXT NOT NULL,
+                provider_id TEXT NOT NULL,
+                from_asset TEXT NOT NULL,
+                to_asset TEXT NOT NULL,
+                send_amount_atomic INTEGER NOT NULL,
+                receive_amount_atomic INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'awaiting_deposit',
+                deposit_address TEXT,
+                deposit_amount_atomic INTEGER,
+                destination_wallet_id INTEGER,
+                provider_ref TEXT,
+                from_txid TEXT,
+                to_txid TEXT,
+                from_network TEXT,
+                to_network TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                settled_at DATETIME,
+                expires_at DATETIME,
+                raw_json TEXT,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (destination_wallet_id) REFERENCES wallets(id)
+            )
+        """)
+
+        swap_cols = {r[1] for r in conn.execute("PRAGMA table_info(swaps)").fetchall()}
+        for col, ddl in (
+            ("from_txid", "TEXT"),
+            ("to_txid", "TEXT"),
+            ("from_network", "TEXT"),
+            ("to_network", "TEXT"),
+        ):
+            if col not in swap_cols:
+                conn.execute(f"ALTER TABLE swaps ADD COLUMN {col} {ddl}")
 
         conn.commit()
 
@@ -315,7 +406,7 @@ class WalletDatabase:
         with self.get_connection() as conn:
             row = conn.execute(
                 """
-                SELECT wallet_key_salt, wallet_key_verifier
+                SELECT wallet_key_salt, wallet_key_verifier, mainnet_ack_at
                 FROM users WHERE id = ?
                 """,
                 (user_id,),
@@ -325,7 +416,26 @@ class WalletDatabase:
             return {
                 "wallet_key_salt": row["wallet_key_salt"],
                 "wallet_key_verifier": row["wallet_key_verifier"],
+                "mainnet_ack_at": row["mainnet_ack_at"]
+                if "mainnet_ack_at" in row.keys()
+                else None,
             }
+
+    def get_mainnet_ack_at(self, user_id: int) -> Optional[str]:
+        security = self.get_wallet_security(user_id)
+        if not security:
+            return None
+        return security.get("mainnet_ack_at")
+
+    def set_mainnet_ack(self, user_id: int) -> str:
+        now = datetime.utcnow().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE users SET mainnet_ack_at = ? WHERE id = ?",
+                (now, user_id),
+            )
+            conn.commit()
+        return now
 
     def set_wallet_security(
         self, user_id: int, salt: str, verifier: str
@@ -373,18 +483,34 @@ class WalletDatabase:
 
     # --- Wallets ---
 
-    def list_wallets(self, user_id: int) -> list[dict]:
+    _WALLET_PUBLIC_COLUMNS = """
+        id, user_id, name, asset_type, xpub, derivation_path, network,
+        xmr_primary_address, xmr_restore_height, xmr_account_index,
+        receive_index, last_synced_height, encryption_version, created_at
+    """
+
+    def list_wallets(
+        self, user_id: int, asset_type: Optional[str] = None
+    ) -> list[dict]:
+        query = f"""
+            SELECT {self._WALLET_PUBLIC_COLUMNS}
+            FROM wallets WHERE user_id = ?
+        """
+        params: list[Any] = [user_id]
+        if asset_type is not None:
+            if asset_type not in ASSET_TYPES:
+                raise ValueError(f"Invalid asset_type: {asset_type}")
+            query += " AND asset_type = ?"
+            params.append(asset_type)
+        query += " ORDER BY created_at ASC"
         with self.get_connection() as conn:
-            rows = conn.execute(
-                """
-                SELECT id, user_id, name, xpub, derivation_path, network,
-                       receive_index, last_synced_height, encryption_version, created_at
-                FROM wallets WHERE user_id = ?
-                ORDER BY created_at ASC
-                """,
-                (user_id,),
-            ).fetchall()
-            return [dict(r) for r in rows]
+            rows = conn.execute(query, params).fetchall()
+            return [self._normalize_wallet_row(dict(r)) for r in rows]
+
+    @staticmethod
+    def _normalize_wallet_row(row: dict) -> dict:
+        row.setdefault("asset_type", "btc")
+        return row
 
     def list_wallets_with_secrets(self, user_id: int) -> list[dict]:
         with self.get_connection() as conn:
@@ -411,14 +537,13 @@ class WalletDatabase:
     def get_wallet(self, wallet_id: int, user_id: int) -> Optional[dict]:
         with self.get_connection() as conn:
             row = conn.execute(
-                """
-                SELECT id, user_id, name, xpub, derivation_path, network,
-                       receive_index, last_synced_height, created_at
+                f"""
+                SELECT {self._WALLET_PUBLIC_COLUMNS}
                 FROM wallets WHERE id = ? AND user_id = ?
                 """,
                 (wallet_id, user_id),
             ).fetchone()
-            return dict(row) if row else None
+            return self._normalize_wallet_row(dict(row)) if row else None
 
     def get_wallet_with_secrets(self, wallet_id: int, user_id: int) -> Optional[dict]:
         with self.get_connection() as conn:
@@ -442,29 +567,74 @@ class WalletDatabase:
         encrypted_seed: Optional[str] = None,
         derivation_path: Optional[str] = None,
         encryption_version: int = 2,
+        *,
+        asset_type: str = "btc",
+        xmr_primary_address: Optional[str] = None,
+        xmr_restore_height: int = 0,
+        xmr_account_index: int = 0,
+        xmr_encrypted_view_key: Optional[str] = None,
     ) -> int:
+        if asset_type not in ASSET_TYPES:
+            raise ValueError(f"Invalid asset_type: {asset_type}")
+        if asset_type == "btc" and not xpub:
+            raise ValueError("BTC wallets require xpub")
+        if asset_type == "xmr" and not xmr_primary_address:
+            raise ValueError("XMR wallets require xmr_primary_address")
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO wallets (
-                    user_id, name, network, xpub, encrypted_seed,
-                    derivation_path, encryption_version
+                    user_id, name, network, asset_type, xpub, encrypted_seed,
+                    derivation_path, encryption_version,
+                    xmr_primary_address, xmr_restore_height, xmr_account_index,
+                    xmr_encrypted_view_key
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user_id,
                     name,
                     network,
+                    asset_type,
                     xpub,
                     encrypted_seed,
                     derivation_path,
                     encryption_version,
+                    xmr_primary_address,
+                    xmr_restore_height,
+                    xmr_account_index,
+                    xmr_encrypted_view_key,
                 ),
             )
             conn.commit()
             return cursor.lastrowid
+
+    def update_wallet_xmr_sync(
+        self,
+        wallet_id: int,
+        *,
+        restore_height: Optional[int] = None,
+        receive_index: Optional[int] = None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[Any] = []
+        if restore_height is not None:
+            updates.append("xmr_restore_height = ?")
+            params.append(restore_height)
+        if receive_index is not None:
+            updates.append("receive_index = ?")
+            params.append(receive_index)
+        if not updates:
+            return
+        params.append(wallet_id)
+        with self.get_connection() as conn:
+            conn.execute(
+                f"UPDATE wallets SET {', '.join(updates)} WHERE id = ?",
+                params,
+            )
+            conn.commit()
 
     def set_receive_index(self, wallet_id: int, index: int) -> None:
         with self.get_connection() as conn:
@@ -876,6 +1046,7 @@ class WalletDatabase:
             "coordinator_uri": os.getenv("COORDINATOR_URI", ""),
             "allow_mainnet": os.getenv("ALLOW_MAINNET", "false"),
             "backend_type": os.getenv("BITCOIN_BACKEND_TYPE", "esplora"),
+            "wallet_unlock_ttl": os.getenv("WALLET_UNLOCK_TTL", "900"),
         }
         with self.get_connection() as conn:
             rows = conn.execute("SELECT key, value FROM system_settings").fetchall()
@@ -1009,3 +1180,135 @@ class WalletDatabase:
                 (network, row["balance_sats"]),
             ).fetchone()[0]
             return int(rank)
+
+    # --- Swaps ---
+
+    def create_swap(
+        self,
+        user_id: int,
+        *,
+        quote_id: str,
+        provider_id: str,
+        from_asset: str,
+        to_asset: str,
+        send_amount_atomic: int,
+        receive_amount_atomic: int,
+        status: str,
+        destination_wallet_id: Optional[int] = None,
+        deposit_address: Optional[str] = None,
+        deposit_amount_atomic: Optional[int] = None,
+        expires_at: Optional[str] = None,
+        raw_json: Optional[str] = None,
+        from_network: Optional[str] = None,
+        to_network: Optional[str] = None,
+        from_txid: Optional[str] = None,
+        to_txid: Optional[str] = None,
+    ) -> int:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO swaps (
+                    user_id, quote_id, provider_id, from_asset, to_asset,
+                    send_amount_atomic, receive_amount_atomic, status,
+                    destination_wallet_id, deposit_address, deposit_amount_atomic,
+                    expires_at, raw_json, from_network, to_network, from_txid, to_txid
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    quote_id,
+                    provider_id,
+                    from_asset,
+                    to_asset,
+                    send_amount_atomic,
+                    receive_amount_atomic,
+                    status,
+                    destination_wallet_id,
+                    deposit_address,
+                    deposit_amount_atomic,
+                    expires_at,
+                    raw_json,
+                    from_network,
+                    to_network,
+                    from_txid,
+                    to_txid,
+                ),
+            )
+            conn.commit()
+            return int(cursor.lastrowid)
+
+    def get_swap(self, swap_id: int, user_id: int) -> Optional[dict]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT * FROM swaps WHERE id = ? AND user_id = ?",
+                (swap_id, user_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def list_swaps(self, user_id: int, limit: int = 50) -> list[dict]:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM swaps WHERE user_id = ?
+                ORDER BY created_at DESC LIMIT ?
+                """,
+                (user_id, limit),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def update_swap_txids(
+        self,
+        swap_id: int,
+        user_id: int,
+        *,
+        from_txid: Optional[str] = None,
+        to_txid: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Optional[dict]:
+        row = self.get_swap(swap_id, user_id)
+        if not row:
+            return None
+        fields: list[str] = []
+        values: list = []
+        if from_txid is not None:
+            fields.append("from_txid = ?")
+            values.append(from_txid.strip() or None)
+        if to_txid is not None:
+            fields.append("to_txid = ?")
+            values.append(to_txid.strip() or None)
+        if status is not None:
+            fields.append("status = ?")
+            values.append(status)
+        if not fields:
+            return row
+        values.extend([swap_id, user_id])
+        with self.get_connection() as conn:
+            conn.execute(
+                f"UPDATE swaps SET {', '.join(fields)} WHERE id = ? AND user_id = ?",
+                values,
+            )
+            conn.commit()
+        return self.get_swap(swap_id, user_id)
+
+    def update_swap_status(
+        self,
+        swap_id: int,
+        user_id: int,
+        status: str,
+        *,
+        settled_at: Optional[str] = None,
+        provider_ref: Optional[str] = None,
+    ) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE swaps
+                SET status = ?, settled_at = COALESCE(?, settled_at),
+                    provider_ref = COALESCE(?, provider_ref)
+                WHERE id = ? AND user_id = ?
+                """,
+                (status, settled_at, provider_ref, swap_id, user_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0

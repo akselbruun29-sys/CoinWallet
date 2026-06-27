@@ -19,6 +19,7 @@ from src.wallet.vault import (
     make_wallet_verifier,
     new_wallet_salt,
     unlock_status,
+    unlock_ttl_seconds,
     unlock_user,
     verify_wallet_passphrase,
 )
@@ -33,6 +34,10 @@ class PassphraseRequest(BaseModel):
 class ChangePassphraseRequest(BaseModel):
     current_passphrase: str = Field(..., min_length=8)
     new_passphrase: str = Field(..., min_length=8)
+
+
+class MainnetAckRequest(BaseModel):
+    acknowledged: bool = Field(..., description="Must be true to record mainnet risk acceptance")
 
 
 def _migrate_wallets_to_v2(
@@ -62,9 +67,12 @@ def _security_payload(user_id: int, db: WalletDatabase) -> dict:
         "has_wallet_passphrase": bool(security.get("wallet_key_verifier")),
         "unlocked": status["unlocked"],
         "expires_at": status["expires_at"],
+        "unlock_ttl_seconds": unlock_ttl_seconds(),
         "legacy_wallet_count": legacy_count,
         "wallet_count": db.count_user_wallets(user_id),
         "admin_cannot_decrypt": bool(security.get("wallet_key_verifier")),
+        "mainnet_acknowledged": bool(db.get_mainnet_ack_at(user_id)),
+        "mainnet_ack_at": db.get_mainnet_ack_at(user_id),
     }
 
 
@@ -128,6 +136,11 @@ def unlock_wallet(
         )
 
     if not verify_wallet_passphrase(body.passphrase, salt, user.id, verifier):
+        db.add_audit(
+            "WALLET_UNLOCK_FAILED",
+            user_id=user.id,
+            ip=request.client.host if request.client else "",
+        )
         raise HTTPException(status_code=401, detail="Invalid wallet passphrase")
 
     dek = derive_user_dek(body.passphrase, salt, user.id)
@@ -205,6 +218,11 @@ def migrate_legacy_wallets(
     if not salt or not verifier:
         raise HTTPException(status_code=400, detail="Set wallet passphrase first")
     if not verify_wallet_passphrase(body.passphrase, salt, user.id, verifier):
+        db.add_audit(
+            "WALLET_UNLOCK_FAILED",
+            user_id=user.id,
+            ip=request.client.host if request.client else "",
+        )
         raise HTTPException(status_code=401, detail="Invalid wallet passphrase")
 
     dek = derive_user_dek(body.passphrase, salt, user.id)
@@ -217,6 +235,29 @@ def migrate_legacy_wallets(
         ip=request.client.host if request.client else "",
     )
     return {**_security_payload(user.id, db), "migrated_wallets": migrated}
+
+
+@router.post("/wallet/mainnet/acknowledge")
+def acknowledge_mainnet_risks(
+    body: MainnetAckRequest,
+    request: Request,
+    user: AuthUser = Depends(require_wallet_unlocked),
+    db: WalletDatabase = Depends(get_db),
+):
+    if not body.acknowledged:
+        raise HTTPException(status_code=400, detail="Mainnet acknowledgment must be accepted")
+
+    if db.get_mainnet_ack_at(user.id):
+        return _security_payload(user.id, db)
+
+    ack_at = db.set_mainnet_ack(user.id)
+    db.add_audit(
+        "MAINNET_ACKNOWLEDGED",
+        user_id=user.id,
+        details=f"ack_at={ack_at}",
+        ip=request.client.host if request.client else "",
+    )
+    return _security_payload(user.id, db)
 
 
 def require_wallet_unlocked(

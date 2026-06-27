@@ -1,13 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { detectOS, platformLabel, type DetectedOS, type PlatformId } from '$lib/detect-os';
+  import { detectBrowser, browserLabel, isMobileUserAgent } from '$lib/detect-browser';
+  import { detectionSummary, downloadHint, type ClientEnvironment } from '$lib/download-hints';
+  import { detectOS, platformLabel, type PlatformId } from '$lib/detect-os';
   import { releases, platformManifestKey } from '$lib/releases';
 
-  let detectedOS = $state<DetectedOS>('unknown');
+  let env = $state<ClientEnvironment>({
+    os: 'unknown',
+    browser: 'unknown',
+    mobile: false,
+  });
 
   onMount(() => {
-    detectedOS = detectOS(navigator.userAgent);
+    const ua = navigator.userAgent;
+    env = {
+      os: detectOS(ua),
+      browser: detectBrowser(ua),
+      mobile: isMobileUserAgent(ua),
+    };
   });
+
+  const summary = $derived(detectionSummary(env));
+  const hint = $derived(downloadHint(env));
+  const detectedOS = $derived(env.os);
 
   const platforms: {
     id: PlatformId;
@@ -46,18 +61,38 @@
       Version {releases.version} · Desktop builds for Windows and macOS, distributed directly from
       this site with published checksums.
     </p>
-    {#if detectedOS !== 'unknown'}
+    {#if summary}
       <p class="mt-4 text-sm text-success">
-        Detected {platformLabel(detectedOS)} — your platform is highlighted below.
+        Detected {summary}{#if !env.mobile && detectedOS !== 'unknown'} — your platform is highlighted below{/if}.
       </p>
     {/if}
   </div>
+
+  {#if hint}
+    <div
+      class="mx-auto mb-10 max-w-3xl rounded-xl border border-border bg-card px-5 py-4 text-sm leading-relaxed text-muted-foreground {env.mobile
+        ? 'border-muted-foreground/30 bg-muted/40'
+        : ''}"
+      role="note"
+    >
+      {#if env.mobile}
+        <p class="mb-1 font-medium text-foreground">Desktop download required</p>
+      {:else if env.browser !== 'unknown'}
+        <p class="mb-1 font-medium text-foreground">
+          Tip for {browserLabel(env.browser)}{#if detectedOS !== 'unknown'} on {platformLabel(detectedOS)}{/if}
+        </p>
+      {:else}
+        <p class="mb-1 font-medium text-foreground">Download tip</p>
+      {/if}
+      <p>{hint}</p>
+    </div>
+  {/if}
 
   <ul class="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
     {#each platforms as platform}
       {@const manifestKey = platformManifestKey[platform.id]}
       {@const entry = releases.platforms[manifestKey]}
-      {@const isDetected = detectedOS === platform.id}
+      {@const isDetected = !env.mobile && detectedOS === platform.id}
       {@const available = entry.available}
       <li
         class="flex flex-col rounded-xl border bg-card p-6 transition-colors {isDetected
@@ -108,8 +143,19 @@
         <p class="mb-4 flex-1 text-sm leading-relaxed text-muted-foreground">{platform.note}</p>
 
         {#if entry.sha256}
-          <p class="mb-4 break-all font-mono text-xs text-muted-foreground">
+          <p class="mb-2 break-all font-mono text-xs text-muted-foreground">
             SHA-256: {entry.sha256}
+          </p>
+        {/if}
+        {#if entry.signature_status}
+          <p class="mb-4 text-xs text-muted-foreground">
+            Signature:
+            <span class={entry.signature_status === 'signed' ? 'text-success' : ''}>
+              {entry.signature_status}
+            </span>
+            {#if entry.signer_fingerprint}
+              · Fingerprint: <span class="font-mono">{entry.signer_fingerprint}</span>
+            {/if}
           </p>
         {/if}
 
@@ -121,6 +167,12 @@
             >
               Download for {platform.name}
             </a>
+            <a
+              href="/install?platform={platform.id}"
+              class="flex h-10 w-full items-center justify-center rounded-lg border border-border text-sm font-medium text-muted-foreground transition-colors hover:border-success/40 hover:text-foreground"
+            >
+              Installation guide
+            </a>
           {:else}
             <span
               class="flex h-10 w-full cursor-not-allowed items-center justify-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground"
@@ -128,6 +180,12 @@
             >
               Download for {platform.name}
             </span>
+            <a
+              href="/install?platform={platform.id}"
+              class="flex h-10 w-full items-center justify-center rounded-lg border border-border text-sm font-medium text-muted-foreground transition-colors hover:border-success/40 hover:text-foreground"
+            >
+              Installation guide
+            </a>
           {/if}
         </div>
       </li>
@@ -135,6 +193,13 @@
   </ul>
 
   <p class="mt-10 text-center text-sm text-muted-foreground">
-    Verify downloads with the published SHA-256 checksum before installing.
+    Verify downloads with the published SHA-256 checksum before installing. Compare code-signing
+    fingerprints for signed builds.
+    <a href="/install" class="text-success hover:underline">Full installation guide</a>
   </p>
+  {#if releases.signer_fingerprint}
+    <p class="mt-3 text-center font-mono text-xs text-muted-foreground">
+      Publisher fingerprint: {releases.signer_fingerprint}
+    </p>
+  {/if}
 </main>

@@ -1,5 +1,7 @@
 """Authentication helpers for the wallet API."""
 import os
+import secrets
+import time
 from dataclasses import dataclass
 from typing import Optional
 
@@ -11,6 +13,7 @@ from src.database import WalletDatabase
 
 SESSION_COOKIE = "wv_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days
+SESSION_IDLE_SECONDS = int(os.getenv("SESSION_IDLE_SECONDS", "3600"))  # 1 hour
 
 
 @dataclass
@@ -38,14 +41,37 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_session_token(user_id: int, username: str, role: str) -> str:
-    return _serializer().dumps({"id": user_id, "user": username, "role": role})
+    now = time.time()
+    return _serializer().dumps(
+        {
+            "id": user_id,
+            "user": username,
+            "role": role,
+            "iat": now,
+            "last": now,
+            "sid": secrets.token_hex(16),
+        }
+    )
 
 
 def verify_session_token(token: str) -> Optional[dict]:
     try:
-        return _serializer().loads(token, max_age=SESSION_MAX_AGE)
+        data = _serializer().loads(token, max_age=SESSION_MAX_AGE)
     except (BadSignature, SignatureExpired):
         return None
+
+    last = float(data.get("last", data.get("iat", 0)))
+    if time.time() - last > SESSION_IDLE_SECONDS:
+        return None
+    return data
+
+
+def touch_session_token(token: str) -> Optional[str]:
+    data = verify_session_token(token)
+    if not data:
+        return None
+    data["last"] = time.time()
+    return _serializer().dumps(data)
 
 
 def set_session_cookie(response: Response, token: str) -> None:

@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "node ../scripts/sync-site-releases.mjs",
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:cf": "npm run build && npx wrangler pages deploy build --project-name=coinwallet"
   },
   "devDependencies": {
+    "wrangler": "^4.105.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@sveltejs/adapter-auto": "^4.0.0",
     "@sveltejs/adapter-static": "^3.0.10",

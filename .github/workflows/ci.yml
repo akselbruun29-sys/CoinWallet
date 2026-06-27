@@ -23,6 +23,9 @@ jobs:
       - name: Verify API imports
         run: python -c "from api.main import app; print('api ok')"
 
+      - name: Pre-release security gate (static)
+        run: python scripts/verify_release_security.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -31,6 +34,19 @@ jobs:
 
       - name: Build admin UI
         working-directory: admin
+        run: |
+          npm ci
+          npm run build
+
+      - name: Sync site release manifest
+        run: node scripts/sync-site-releases.mjs
+
+      - name: Verify release manifest hashes
+        run: python scripts/verify-release-manifest.py
+        continue-on-error: true
+
+      - name: Build download site
+        working-directory: site
         run: |
           npm ci
           npm run build

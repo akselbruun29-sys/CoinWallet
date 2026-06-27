@@ -1,10 +1,12 @@
 """Public leaderboard API — opt-in balance rankings only."""
 from __future__ import annotations
 
+import re
 import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.auth import AuthUser, get_current_user, get_db
@@ -15,6 +17,37 @@ router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
 
 _CACHE_TTL_SECONDS = 30
 _cache: dict[str, tuple[float, dict]] = {}
+_last_balance_update: dict[str, float] = {}
+
+_DISPLAY_NAME_RE = re.compile(r"^[A-Za-z0-9 _-]{2,32}$")
+_RESERVED_NAMES = frozenset(
+    {
+        "admin",
+        "administrator",
+        "coinwallet",
+        "official",
+        "support",
+        "moderator",
+        "staff",
+        "system",
+        "root",
+    }
+)
+_MAX_BALANCE_JUMP_RATIO = 2.0
+_MIN_BALANCE_UPDATE_INTERVAL = 60
+
+
+def validate_display_name(name: str) -> str:
+    cleaned = name.strip()
+    if not _DISPLAY_NAME_RE.fullmatch(cleaned):
+        raise ValueError(
+            "Display name must be 2–32 characters: letters, numbers, spaces, hyphen, underscore"
+        )
+    normalized = cleaned.lower().replace(" ", "").replace("-", "").replace("_", "")
+    for reserved in _RESERVED_NAMES:
+        if reserved in normalized:
+            raise ValueError("Display name cannot impersonate admin or CoinWallet staff")
+    return cleaned
 
 
 def _cache_get(key: str) -> Optional[dict]:
@@ -63,14 +96,20 @@ def get_leaderboard(
     cache_key = f"{network}:{limit}"
     cached = _cache_get(cache_key)
     if cached:
-        return cached
+        return JSONResponse(
+            cached,
+            headers={"Cache-Control": f"public, max-age={_CACHE_TTL_SECONDS}"},
+        )
 
     payload = {
         "network": network,
         "entries": db.list_leaderboard(network, limit),
     }
     _cache_set(cache_key, payload)
-    return payload
+    return JSONResponse(
+        payload,
+        headers={"Cache-Control": f"public, max-age={_CACHE_TTL_SECONDS}"},
+    )
 
 
 @router.get("/me")
@@ -108,9 +147,13 @@ def leaderboard_opt_in(
     network = settings.get("network", "testnet")
 
     if body.opted_in:
+        try:
+            display_name = validate_display_name(body.display_name)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         balance = db.user_total_balance_sats(user.id, network)
         db.set_leaderboard_opt_in(
-            user.id, network, body.display_name.strip(), True, balance
+            user.id, network, display_name, True, balance
         )
         db.add_audit(
             "LEADERBOARD_OPT_IN",
@@ -140,19 +183,43 @@ def leaderboard_opt_in(
 @router.post("/update")
 def leaderboard_update(
     body: UpdateRequest,
+    request: Request,
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
+    check_rate_limit(request, "leaderboard_update")
     entry = db.get_leaderboard_entry(user.id, body.network)
     if not entry or not entry["opted_in"]:
         raise HTTPException(status_code=400, detail="Leaderboard opt-in required")
 
-    if not db.update_leaderboard_balance(user.id, body.network, body.balance_sats):
+    update_key = f"{user.id}:{body.network}"
+    now = time.time()
+    last_update = _last_balance_update.get(update_key, 0)
+    if now - last_update < _MIN_BALANCE_UPDATE_INTERVAL:
+        raise HTTPException(
+            status_code=429,
+            detail="Leaderboard balance updates are limited to once per minute",
+        )
+
+    server_balance = db.user_total_balance_sats(user.id, body.network)
+    tolerance = max(10_000, int(server_balance * 0.05))
+    if abs(body.balance_sats - server_balance) > tolerance:
+        raise HTTPException(
+            status_code=400,
+            detail="Reported balance does not match synced wallet total",
+        )
+
+    previous = int(entry.get("balance_sats") or 0)
+    if previous > 0 and server_balance > previous * _MAX_BALANCE_JUMP_RATIO + tolerance:
+        raise HTTPException(status_code=400, detail="Impossible balance increase rejected")
+
+    if not db.update_leaderboard_balance(user.id, body.network, server_balance):
         raise HTTPException(status_code=400, detail="Leaderboard entry not found")
 
+    _last_balance_update[update_key] = now
     _cache.clear()
     return {
         "network": body.network,
-        "balance_sats": body.balance_sats,
+        "balance_sats": server_balance,
         "rank": db.get_leaderboard_rank(user.id, body.network),
     }

@@ -17,25 +17,39 @@ export interface WalletSecurityStatus {
   has_wallet_passphrase: boolean;
   unlocked: boolean;
   expires_at: number | null;
+  unlock_ttl_seconds?: number;
   legacy_wallet_count: number;
   wallet_count: number;
   admin_cannot_decrypt: boolean;
+  mainnet_acknowledged?: boolean;
+  mainnet_ack_at?: string | null;
 }
 
 export interface AuthConfig {
   open_registration: boolean;
   auto_approve_users: boolean;
+  session_idle_seconds?: number;
+  session_max_age_days?: number;
+  csrf_model?: string;
+  auth_primary?: string;
 }
+
+export type AssetType = 'btc' | 'xmr';
 
 export interface Wallet {
   id: number;
   user_id: number;
   name: string;
+  asset_type: AssetType;
   xpub?: string;
   derivation_path?: string;
   network: string;
+  xmr_primary_address?: string | null;
+  xmr_restore_height?: number;
+  xmr_account_index?: number;
   receive_index?: number;
   last_synced_height?: number;
+  encryption_version?: number;
   created_at: string;
 }
 
@@ -87,6 +101,71 @@ export interface SendResult {
   fee_sats: number;
   amount_sats: number;
   hex: string;
+}
+
+export interface SwapProviderInfo {
+  id: string;
+  name: string;
+  type: string;
+  custodial: boolean;
+  disclosure: string;
+  enabled: boolean;
+}
+
+export interface SwapQuote {
+  quote_id: string;
+  provider: string;
+  from_asset: AssetType;
+  to_asset: AssetType;
+  send_amount_atomic: number;
+  receive_amount_atomic: number;
+  amount_sats: number;
+  rate: number;
+  fees: { network: number; provider: number };
+  min: number;
+  max: number;
+  expires_at: string;
+  disclosure: string;
+  network?: string;
+}
+
+export interface SwapExecuteResult {
+  swap_id: number;
+  status: string;
+  from_asset: AssetType;
+  to_asset: AssetType;
+  send_amount_atomic: number;
+  receive_amount_atomic: number;
+  deposit_address?: string | null;
+  deposit_amount_atomic?: number | null;
+  destination_wallet_id: number;
+  provider: string;
+  expires_at?: string;
+  deposit_address_checksum_valid?: boolean | null;
+  instructions?: string;
+}
+
+export interface SwapRecord {
+  id: number;
+  user_id: number;
+  quote_id: string;
+  provider_id: string;
+  from_asset: AssetType;
+  to_asset: AssetType;
+  send_amount_atomic: number;
+  receive_amount_atomic: number;
+  status: string;
+  deposit_address?: string | null;
+  deposit_amount_atomic?: number | null;
+  destination_wallet_id?: number | null;
+  from_txid?: string | null;
+  to_txid?: string | null;
+  from_network?: string | null;
+  to_network?: string | null;
+  explorer_links?: { from: string | null; to: string | null };
+  created_at: string;
+  settled_at?: string | null;
+  expires_at?: string | null;
 }
 
 export interface StatusResponse {
@@ -210,12 +289,16 @@ function authHeaders(): HeadersInit {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
       ...options.headers
     }
   });
+
+  const rotated = res.headers.get('X-Session-Token');
+  if (rotated) setToken(rotated);
 
   if (res.status === 401) {
     clearToken();
@@ -303,6 +386,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ current_passphrase, new_passphrase })
     }),
+  acknowledgeMainnetRisks: () =>
+    request<WalletSecurityStatus>('/api/security/wallet/mainnet/acknowledge', {
+      method: 'POST',
+      body: JSON.stringify({ acknowledged: true })
+    }),
   status: () => request<StatusResponse>('/api/status'),
   settings: () => request<Record<string, string>>('/api/settings'),
   logs: (tail = 200, level?: string, search?: string) => {
@@ -311,16 +399,32 @@ export const api = {
     if (search) params.set('search', search);
     return request<{ lines: string[]; path: string }>(`/api/logs?${params}`);
   },
-  wallets: () => request<Wallet[]>('/api/wallets'),
-  createWallet: (name: string, network = 'testnet') =>
+  wallets: (asset_type?: AssetType) =>
+    request<Wallet[]>(
+      asset_type ? `/api/wallets?asset_type=${encodeURIComponent(asset_type)}` : '/api/wallets'
+    ),
+  createWallet: (name: string, options?: { network?: string; asset_type?: AssetType }) =>
     request<CreateWalletResponse>('/api/wallets', {
       method: 'POST',
-      body: JSON.stringify({ name, network })
+      body: JSON.stringify({
+        name,
+        network: options?.network,
+        asset_type: options?.asset_type ?? 'btc'
+      })
     }),
-  importWallet: (name: string, mnemonic: string, network = 'testnet') =>
+  importWallet: (
+    name: string,
+    mnemonic: string,
+    options?: { network?: string; asset_type?: AssetType }
+  ) =>
     request<Wallet>('/api/wallets/import', {
       method: 'POST',
-      body: JSON.stringify({ name, mnemonic, network })
+      body: JSON.stringify({
+        name,
+        mnemonic,
+        network: options?.network,
+        asset_type: options?.asset_type ?? 'btc'
+      })
     }),
   syncWallet: (id: number) =>
     request<SyncStatus>(`/api/wallets/${id}/sync`, { method: 'POST', body: '{}' }),
@@ -334,8 +438,18 @@ export const api = {
     }),
   walletTransactions: (id: number) =>
     request<WalletTransaction[]>(`/api/wallets/${id}/transactions`),
-  walletReceive: (id: number) =>
-    request<{ address: string; network: string; index?: number }>(`/api/wallets/${id}/receive-address`),
+  walletReceive: (id: number, options?: { subaddress?: boolean }) =>
+    request<{
+      address: string;
+      network: string;
+      index?: number;
+      address_type?: string;
+      asset_type?: string;
+    }>(
+      `/api/wallets/${id}/receive-address${
+        options?.subaddress === false ? '?subaddress=false' : ''
+      }`
+    ),
   walletStats: (id: number) => request<WalletStats>(`/api/wallets/${id}/stats`),
   walletPrivacy: (id: number) => request<PrivacySummary>(`/api/wallets/${id}/privacy`),
   sendPreview: (
@@ -381,6 +495,30 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ label, entity })
     }),
+  swapProviders: () =>
+    request<{ providers: SwapProviderInfo[] }>('/api/swap/providers'),
+  swapQuote: (from_asset: AssetType, to_asset: AssetType, amount_sats: number, provider?: string) => {
+    const params = new URLSearchParams({
+      from: from_asset,
+      to: to_asset,
+      amount_sats: String(amount_sats)
+    });
+    if (provider) params.set('provider', provider);
+    return request<SwapQuote>(`/api/swap/quote?${params}`);
+  },
+  swapExecute: (quote_id: string, destination_wallet_id: number) =>
+    request<SwapExecuteResult>('/api/swap/execute', {
+      method: 'POST',
+      body: JSON.stringify({ quote_id, destination_wallet_id })
+    }),
+  swapHistory: (limit = 50) =>
+    request<{ swaps: SwapRecord[] }>(`/api/swap/history?limit=${limit}`),
+  swapStatus: (swap_id: number) => request<SwapRecord>(`/api/swap/${swap_id}`),
+  swapAttachTxids: (swap_id: number, txids: { from_txid?: string; to_txid?: string }) =>
+    request<SwapRecord>(`/api/swap/${swap_id}/txids`, {
+      method: 'PATCH',
+      body: JSON.stringify(txids)
+    }),
   adminUsers: () => request<User[]>('/api/admin/users'),
   adminCreateUser: (username: string, password: string, role = 'user') =>
     request<User>('/api/admin/users', {
@@ -401,6 +539,9 @@ export const api = {
     tor_enabled?: boolean;
     coordinator_uri?: string;
     allow_mainnet?: boolean;
+    mainnet_enable_acknowledged?: boolean;
+    xmr_wallet_rpc_uri?: string;
+    wallet_unlock_ttl?: number;
   }) =>
     request<Record<string, string>>('/api/admin/settings', {
       method: 'PATCH',

@@ -1,0 +1,20 @@
+{
+  "publisher": "CoinWallet",
+  "note": "Copy to signing-keys.json after obtaining code-signing certificates. Publish fingerprints on the download page.",
+  "keys": [
+    {
+      "platform": "windows",
+      "type": "authenticode",
+      "fingerprint": "REPLACE_WITH_CERT_SHA1_THUMBPRINT",
+      "subject": "CN=CoinWallet",
+      "verify_command": "Get-AuthenticodeSignature .\\coinwallet-windows-x64.exe"
+    },
+    {
+      "platform": "macos",
+      "type": "apple-developer-id",
+      "fingerprint": "REPLACE_WITH_TEAM_OR_CERT_FINGERPRINT",
+      "subject": "Developer ID Application: CoinWallet",
+      "verify_command": "codesign -dv --verbose=4 /Applications/CoinWallet.app"
+    }
+  ]
+}

@@ -26,12 +26,29 @@
 
     <section>
       <h2 class="mb-3 text-lg font-semibold text-foreground">Leaderboard (opt-in only)</h2>
-      <p class="text-sm leading-relaxed">
+      <p class="mb-4 text-sm leading-relaxed">
         The public leaderboard is disabled by default. If you opt in, only your chosen display name
         and total balance (in satoshis) are sent to the server. We never upload addresses,
         mnemonics, UTXOs, or transaction history for leaderboard purposes. You can opt out at any
         time; your entry is removed immediately.
       </p>
+      <div class="rounded-lg border border-border bg-muted/40 p-4 text-sm">
+        <p class="mb-3 font-medium text-foreground">Leaderboard data flow</p>
+        <pre class="overflow-x-auto whitespace-pre text-xs leading-relaxed text-muted-foreground"><code>Your device                         CoinWallet server              Public site
+───────────                         ─────────────────              ───────────
+Wallet sync (local)
+      │
+      ▼
+Total balance computed ──opt-in──►  display_name + balance_sats ──►  /leaderboard page
+      │                               (no addresses / seeds)
+      │
+      ✕ opt-out ───────────────────►  entry deleted immediately</code></pre>
+        <ul class="mt-3 list-inside list-disc space-y-1 text-xs text-muted-foreground">
+          <li>Display names are validated (length, charset, no impersonation).</li>
+          <li>Balance updates are rate-limited and matched to your synced wallet total.</li>
+          <li>Leaderboard GET responses are cached briefly; no authentication required to read ranks.</li>
+        </ul>
+      </div>
     </section>
 
     <section>

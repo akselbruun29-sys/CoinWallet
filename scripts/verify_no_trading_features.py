@@ -67,6 +67,7 @@ def main() -> int:
         return 1
 
     print("OK — no trading bot, signal, or background swap patterns in api/, src/, admin/src/")
+    print("OK — Phase 10.14 / 11.28 swap verification passed (user-initiated swap only)")
     return 0
 
 

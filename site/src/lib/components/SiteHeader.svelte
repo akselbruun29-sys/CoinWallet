@@ -2,6 +2,7 @@
   const links = [
     { href: '/', label: 'Home' },
     { href: '/download', label: 'Download' },
+    { href: '/install', label: 'Install' },
     { href: '/leaderboard', label: 'Leaderboard' },
     { href: '/privacy', label: 'Privacy' },
     { href: '/terms', label: 'Terms' },

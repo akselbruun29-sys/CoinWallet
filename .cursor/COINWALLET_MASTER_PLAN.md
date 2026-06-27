@@ -6,9 +6,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | 9 — Polish & web release |
-| **Next task** | **9.3** — Mainnet gate audit (desktop) |
-| **Last completed** | 9.1 |
+| **Current phase** | 12 — Release readiness |
+| **Next task** | **12.5** — Run `deploy-site.ps1` with Cloudflare token (or CI Release desktop) |
+| **Last completed** | 12.7 deploy-site scripts + release workflow deploy job |
 | **Loop mode** | Chain (back-to-back tasks) |
 | **Last loop tick** | 2026-06-27 |
 
@@ -27,6 +27,27 @@
 | 2026-06-27 | 7.1–7.5 | Chain: freeze/unfreeze + labels, `privacy.py`, recommendations UI, advisor privacy templates — **Phase 7 complete** |
 | 2026-06-27 | 8.1–8.8 | Chain: advisor engine, `/advisor` route, balance/fee/security/FAQ templates, verify script — **Phase 8 complete** |
 | 2026-06-27 | 9.1 | CoinWallet icon master (1024), Tauri/site/admin icons, `generate_icons.py` |
+| 2026-06-27 | 9.3–9.4 | Mainnet gates (v2 + user/admin ack), backup dialog hardening, verify scripts |
+| 2026-06-27 | 9.5 | Cloudflare Pages: wrangler.toml, deploy workflow, sync script, _headers |
+| 2026-06-27 | 9.6 | `/install` guides for Windows + macOS — **Phase 9 complete** |
+| 2026-06-27 | 10.1 | Wallet `asset_type` + XMR columns migration, API filter |
+| 2026-06-27 | 10.2 | XMR 25-word keys, encrypted view key, `WalletService` create/import |
+| 2026-06-27 | 10.3 | monero-wallet-rpc client, XmrSyncEngine, WalletService routing |
+| 2026-06-27 | 10.4 | XmrOpsEngine receive/subaddress + send; wallet API asset_type create/import |
+| 2026-06-27 | 10.5 | Wallets UI asset filter/create/import; dashboard asset badges + split balances |
+| 2026-06-27 | 10.6 | Unified Receive/Send pages with BTC vs XMR asset-aware UI |
+| 2026-06-27 | 10.7–10.10 | Swap providers, quote/execute API, `/swap` UI + history |
+| 2026-06-27 | 10.11–10.14 | Explorer links, advisor swap tips, XMR stagenet settings, verify script |
+| 2026-06-27 | 11.1–11.4 | Release signing hooks, manifest fingerprints, install verify steps, CI hash check |
+| 2026-06-27 | 11.11 | Block send/swap when legacy v1 wallets remain; Security UI gate |
+| 2026-06-27 | 11.5–11.32 | Security hardening chain: CORS, headers, CSRF, sessions, rate limits, idle lock, swap audits, advisor checklist, release gate |
+| 2026-06-27 | 11.15 | wallet.db.cwenc AES-GCM at-rest sealing via WALLET_DB_KEY |
+| 2026-06-27 | 11.32 | CI + build-windows run verify_release_security.py |
+| 2026-06-27 | Phase 11 ✓ | Desktop security hardening complete (11.22–11.24 deferred — mobile out of scope) |
+| 2026-06-27 | 12.1–12.4 | Mac build gate, README release docs, production env template, install guides |
+| 2026-06-27 | 12.6 | finalize-release, sync-site-releases artifacts, operator checklist, release-desktop.yml |
+| 2026-06-27 | 12.5 (partial) | Tauri nav plugin fix; Windows 0.1.0 built (unsigned), manifest + site static synced |
+| 2026-06-27 | 12.7 | deploy-site.ps1/.sh; release-desktop deploy-site job; site build verified with .exe |
 
 ---
 
@@ -285,18 +306,20 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
 
 ---
 
-## 13. Phase 9 — Polish & web release
+## 13. Phase 9 — Polish & web release ✓
 
 | ID | Task | Deliverable |
 |----|------|-------------|
 | 9.1 ✓ | App icons all platforms (1024 master) | `assets/branding/`, `scripts/generate_icons.py`, `src-tauri/icons/` |
 | 9.2 — | Splash screens mobile | **Out of scope** (desktop-only) |
-| 9.3 | Mainnet gate audit (mobile + desktop) — require v2 passphrase encryption + signed release acknowledgment | |
-| 9.4 | Backup flow audit — mnemonic shown once | |
-| 9.5 | Deploy download site to Cloudflare Pages (free tier) | |
-| 9.6 | Per-platform install docs on site (Windows, Mac, Android APK, iOS sideload) | `site/src/routes/download/` or `/install` |
-| 9.7 | Optional: WebSocket live sync | |
-| 9.8 | Optional: Bitcoin Core RPC backend | |
+| 9.3 ✓ | Mainnet gate audit (desktop) — v2 passphrase + acknowledgment | `mainnet_gate.py`, Security/Settings UI, verify script |
+| 9.4 ✓ | Backup flow audit — mnemonic shown once | Wallets dialog + `verify_backup_flow.py` |
+| 9.5 ✓ | Deploy download site to Cloudflare Pages (free tier) | `deploy-site.yml`, `wrangler.toml`, deploy scripts |
+| 9.6 ✓ | Per-platform install docs on site (Windows, Mac) | `/install`, `install-guides.ts` |
+| 9.7 — | Optional: WebSocket live sync | skipped |
+| 9.8 — | Optional: Bitcoin Core RPC backend | skipped |
+
+**Phase 9 complete** (required tasks; optional 9.7–9.8 deferred).
 
 ---
 
@@ -317,20 +340,20 @@ Each file lists version, SHA-256, code signature metadata, and short install ste
 
 | ID | Task | Deliverable | Status |
 |----|------|-------------|--------|
-| 10.1 | DB migration — `wallets.asset_type` (`btc`\|`xmr`), XMR-specific columns | `src/database.py` | |
-| 10.2 | XMR key generation + encrypted seed storage (25-word Monero mnemonic) | `src/wallet/xmr/keys.py` | |
-| 10.3 | XMR sync backend — wallet-rpc sidecar or lightweight indexer | `src/wallet/xmr/sync.py` | |
-| 10.4 | XMR receive (primary + subaddress) + send | `api/wallet.py` or `api/xmr.py` | |
-| 10.5 | Wallets UI — filter/create by asset; asset badge on dashboard | `admin/.../wallets`, dashboard | |
-| 10.6 | XMR receive/send pages (or unified Receive/Send with asset picker) | `admin/src/routes/(app)/` | |
-| 10.7 | `GET /api/swap/quote` — `{ from_asset, to_asset, amount }` → rate + fees | `api/swap.py` | |
-| 10.8 | Swap provider adapter interface + first provider (Haveno or documented API) | `src/wallet/swap/` | |
-| 10.9 | `POST /api/swap/execute` — create swap record, return deposit address / tx steps | `api/swap.py` | |
-| 10.10 | `/swap` route — quote form, review screen, status/history | `admin/.../swap/+page.svelte` | |
-| 10.11 | Swap history table + explorer links per asset | DB + UI | |
-| 10.12 | Advisor AI — swap privacy tips (when to swap, fee tradeoffs) | `admin/src/lib/advisor/` | |
-| 10.13 | Stagenet/testnet defaults for XMR; mainnet gate matches BTC | env + settings | |
-| 10.14 | **Verify:** no automated trading, signals, or background swap jobs | audit | |
+| 10.1 ✓ | DB migration — `wallets.asset_type` (`btc`\|`xmr`), XMR-specific columns | `src/database.py` |
+| 10.2 ✓ | XMR key generation + encrypted seed storage (25-word Monero mnemonic) | `src/wallet/xmr/keys.py` |
+| 10.3 ✓ | XMR sync backend — wallet-rpc sidecar | `src/wallet/xmr/sync.py`, `rpc.py` |
+| 10.4 ✓ | XMR receive (primary + subaddress) + send | `src/wallet/xmr/ops.py`, `session.py`, `api/wallet.py` |
+| 10.5 ✓ | Wallets UI — filter/create by asset; asset badge on dashboard | `admin/.../wallets`, dashboard |
+| 10.6 ✓ | XMR receive/send pages (unified Receive/Send with asset picker) | `admin/src/routes/(app)/receive`, `send` |
+| 10.7 ✓ | `GET /api/swap/quote` — rate + fees | `api/swap.py`, `src/wallet/swap/` |
+| 10.8 ✓ | Swap provider adapter + rate_table + Haveno stub | `src/wallet/swap/providers/` |
+| 10.9 ✓ | `POST /api/swap/execute` — swap record + deposit steps | `api/swap.py`, `swaps` table |
+| 10.10 ✓ | `/swap` route — quote form, review, history | `admin/.../swap/+page.svelte` |
+| 10.11 ✓ | Swap history table + explorer links per asset | `swaps` txid columns, `/swap` UI |
+| 10.12 ✓ | Advisor AI — swap privacy tips | `admin/src/lib/advisor/swap.ts` |
+| 10.13 ✓ | Stagenet/testnet defaults for XMR; mainnet gate on swap | settings, `SwapService` |
+| 10.14 ✓ | **Verify:** no automated trading/signals/background swap | `scripts/verify_no_trading_features.py` |
 
 **Privacy rules:**
 - Swap is opt-in per transaction — never auto-convert received BTC
@@ -419,7 +442,7 @@ Order in `app-sidebar.svelte`:
 
 ## 19. Current pointer
 
-**Next task:** **9.3** — Mainnet gate audit (see Phase 9 table above).
+**Next task:** **12.5** — First signed release (operator: run checklist, build, sign, `finalize-release`, deploy site).
 
 Update **Loop status** at the top of this file after every tick.
 
@@ -444,7 +467,7 @@ User says stop loop?
 
 ---
 
-## 21. Phase 11 — Security hardening
+## 21. Phase 11 — Security hardening ✓
 
 **Goal:** Close supply-chain, API, key-lifecycle, and public-surface gaps before mainnet and real-money swap. Builds on existing bcrypt sessions, AES-GCM seeds, rate limiting, and passphrase unlock (v2 DEK).
 
@@ -454,71 +477,89 @@ User says stop loop?
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.1 | Sign all release artifacts (Windows Authenticode, macOS codesign + notarize, APK v2 signing) | build scripts in Phase 5/6 |
-| 11.2 | Publish signing public keys / cert fingerprints on site + in `releases.json` | `site/src/routes/download/` |
-| 11.3 | Document verify steps per platform (`Get-FileHash`, `codesign -v`, `apksigner verify`) | install docs (Phase 9.6) |
-| 11.4 | CI reproducible build + artifact hash pinned in manifest | GitHub Actions (optional, free tier) |
+| 11.1 ✓ | Sign release artifacts (optional Authenticode / codesign hooks) | `scripts/sign-release-*`, `build-*.ps1` |
+| 11.2 ✓ | Publish signing fingerprints on site + manifest | `releases.json`, download page |
+| 11.3 ✓ | Document verify steps per platform | `install-guides.ts` |
+| 11.4 ✓ | CI artifact hash verification | `verify-release-manifest.py`, CI |
 
 ### 11.2 API & session hardening
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.5 | Production CORS allowlist via env (`CORS_ORIGINS`); deny `*` with credentials | `api/main.py` |
-| 11.6 | Security headers middleware (CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) | `api/middleware.py` |
-| 11.7 | CSRF protection for cookie-authenticated mutating routes OR document SameSite-only model for native shells | `api/auth.py` + admin fetch wrapper |
-| 11.8 | Extend rate limits: login, unlock, send, swap execute; optional Redis/file backend for multi-process | `api/rate_limit.py` |
-| 11.9 | Session rotation on login + idle timeout (separate from 7-day max age) | `api/auth.py` |
-| 11.10 | `STRICT_SECRETS=true` required in production builds (Tauri/Capacitor sidecar env) | Phase 5.3 sidecar config |
+| 11.5 ✓ | Production CORS allowlist via env (`CORS_ORIGINS`); deny `*` with credentials | `api/main.py` |
+| 11.6 ✓ | Security headers middleware (CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) | `api/middleware.py` |
+| 11.7 ✓ | CSRF protection for cookie-authenticated mutating routes OR document SameSite-only model for native shells | `api/auth.py` + admin fetch wrapper |
+| 11.8 ✓ | Extend rate limits: login, unlock, send, swap execute; optional Redis/file backend for multi-process | `api/rate_limit.py` |
+| 11.9 ✓ | Session rotation on login + idle timeout (separate from 7-day max age) | `api/auth.py` |
+| 11.10 ✓ | `STRICT_SECRETS=true` required in production builds (Tauri/Capacitor sidecar env) | Phase 5.3 sidecar config |
 
 ### 11.3 Wallet & key lifecycle
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.11 | Force v2 (passphrase-only DEK) migration before mainnet; block send if legacy wallets remain | `api/security.py` + UI banner |
-| 11.12 | Auto-lock wallet after idle timeout (configurable in Settings) | `src/wallet/vault.py` + Settings UI |
-| 11.13 | Clear in-memory DEK on lock, app background, and logout | vault + Tauri/Capacitor lifecycle hooks |
-| 11.14 | Mnemonic display: single-use modal, no clipboard auto-copy, explicit "I wrote it down" | Phase 9.4 backup audit |
-| 11.15 | SQLite encryption at rest (SQLCipher or OS-level file encryption on desktop/mobile) | Phase 5/6 packaging |
+| 11.11 ✓ | Force v2 migration before send/swap; block if legacy wallets remain | `mainnet_gate.py`, Send UI |
+| 11.12 ✓ | Auto-lock wallet after idle timeout (configurable in Settings) | `src/wallet/vault.py` + Settings UI |
+| 11.13 ✓ | Clear in-memory DEK on lock, app background, and logout | vault + Tauri/Capacitor lifecycle hooks |
+| 11.14 ✓ | Mnemonic display: single-use modal, no clipboard auto-copy, explicit "I wrote it down" | Phase 9.4 backup audit |
+| 11.15 ✓ | SQLite encryption at rest (SQLCipher or OS-level file encryption on desktop/mobile) | `src/db_at_rest.py`, `WALLET_DB_KEY` |
 
 ### 11.4 Leaderboard & public surface
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.16 | Display name validation (length, charset, block impersonation of "admin"/"CoinWallet") | `api/leaderboard.py` |
-| 11.17 | Rate limit public GET; cache responses (CDN or short TTL) | leaderboard router |
-| 11.18 | Balance update: reject impossible jumps, cap update frequency per user | `POST /api/leaderboard/update` |
-| 11.19 | Privacy page documents exactly what is sent — leaderboard data flow diagram | `site/.../privacy/` |
+| 11.16 ✓ | Display name validation (length, charset, block impersonation of "admin"/"CoinWallet") | `api/leaderboard.py` |
+| 11.17 ✓ | Rate limit public GET; cache responses (CDN or short TTL) | leaderboard router |
+| 11.18 ✓ | Balance update: reject impossible jumps, cap update frequency per user | `POST /api/leaderboard/update` |
+| 11.19 ✓ | Privacy page documents exactly what is sent — leaderboard data flow diagram | `site/.../privacy/` |
 
 ### 11.5 Desktop & mobile shell
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.20 | Bind FastAPI sidecar to `127.0.0.1` only; reject non-local Host headers | Tauri sidecar |
-| 11.21 | Tauri allowlist: disable arbitrary IPC, file system, and remote URL loading except Esplora | `tauri.conf.json` |
-| 11.22 | Capacitor: certificate pinning for Esplora (optional toggle) + no cleartext HTTP | `capacitor.config.ts` |
-| 11.23 | Android backup disabled; iOS Data Protection for Keychain items | native configs |
-| 11.24 | Screenshot/recents blur on mnemonic and unlock screens (mobile) | UI overlay |
+| 11.20 ✓ | Bind FastAPI sidecar to `127.0.0.1` only; reject non-local Host headers | Tauri sidecar |
+| 11.21 ✓ | Tauri allowlist: disable arbitrary IPC, file system, and remote URL loading except Esplora | `tauri.conf.json` |
+| 11.22 — | Capacitor: certificate pinning for Esplora (optional toggle) + no cleartext HTTP | **out of scope** (desktop only) |
+| 11.23 — | Android backup disabled; iOS Data Protection for Keychain items | **out of scope** |
+| 11.24 — | Screenshot/recents blur on mnemonic and unlock screens (mobile) | **out of scope** |
 
 ### 11.6 Swap & XMR
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.25 | Provider allowlist in config; no arbitrary URL from client | `src/wallet/swap/` |
-| 11.26 | Quote expiry enforced server-side; reject stale execute | `api/swap.py` |
-| 11.27 | Swap deposit addresses shown once with checksum verification | swap UI |
-| 11.28 | XMR view/spend keys never in API responses — automated grep/audit in Phase 10.14 verify | audit script |
+| 11.25 ✓ | Provider allowlist in config; no arbitrary URL from client | `src/wallet/swap/` |
+| 11.26 ✓ | Quote expiry enforced server-side; reject stale execute | `api/swap.py` |
+| 11.27 ✓ | Swap deposit addresses shown once with checksum verification | swap UI |
+| 11.28 ✓ | XMR view/spend keys never in API responses — automated grep/audit in Phase 10.14 verify | audit script |
 
 ### 11.7 Operational security & audit
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 11.29 | Expand audit log: login failures, unlock failures, mainnet enable, swap execute (no secrets) | `src/database.py` |
-| 11.30 | Structured security checklist in Advisor AI tab (Phase 8.6) wired to real wallet state | `admin/src/lib/advisor/` |
-| 11.31 | `.env.example` with all security env vars documented | repo root |
-| 11.32 | Pre-release security review gate: run through checklist before mainnet / real releases | Phase 9 checklist |
+| 11.29 ✓ | Expand audit log: login failures, unlock failures, mainnet enable, swap execute (no secrets) | `src/database.py` |
+| 11.30 ✓ | Structured security checklist in Advisor AI tab (Phase 8.6) wired to real wallet state | `admin/src/lib/advisor/` |
+| 11.31 ✓ | `.env.example` with all security env vars documented | repo root |
+| 11.32 ✓ | Pre-release security review gate: run through checklist before mainnet / real releases | `scripts/verify_release_security.py` |
 
 **Out of scope for Phase 11 (defer post-launch):** bug bounty, paid pentest, HSM, cloud WAF, Rust BDK migration for security alone.
 
 ---
 
-*Last plan revision: 2026-06-27 — Phase 11 security hardening track added.*
+*Last plan revision: 2026-06-27 — Phase 11 complete; Phase 12 release readiness started.*
+
+---
+
+## 22. Phase 12 — Release readiness
+
+**Goal:** Ship signed desktop builds with documented production env, build-script parity, and operator docs.
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 12.1 ✓ | Mac build runs pre-release security gate (parity with Windows) | `scripts/build-mac.sh` |
+| 12.2 ✓ | README production release section + corrected ports/phase status | `README.md` |
+| 12.3 ✓ | Production desktop env template | `.env.production.desktop.example` |
+| 12.4 ✓ | Install guides mention production hardening (STRICT_SECRETS, WALLET_DB_KEY) | `install-guides.ts` |
+| 12.5 | First release — build, deploy site with binaries, optional signing | operator |
+| 12.6 ✓ | Finalize/sync scripts, operator checklist, GitHub Release desktop workflow | `finalize-release.*`, `sync-site-releases.mjs`, `release-desktop.yml` |
+| 12.7 ✓ | Deploy scripts + CI deploy job (binaries not in git) | `deploy-site.ps1`, `release-desktop.yml` deploy-site job |
+
+**Deferred:** mobile Capacitor (Phase 6), Haveno live quotes, optional Core RPC (9.8).

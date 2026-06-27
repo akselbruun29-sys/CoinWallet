@@ -5,6 +5,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,15 +29,41 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _macos_signature_status(path: Path) -> tuple[str, str | None]:
+    try:
+        proc = subprocess.run(
+            ["codesign", "-dv", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0 and "Authority=" in (proc.stderr or proc.stdout):
+            for line in (proc.stderr or proc.stdout).splitlines():
+                if "Authority=" in line:
+                    return "signed", line.split("Authority=", 1)[1].strip()
+            return "signed", None
+    except OSError:
+        pass
+    return "unsigned", None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", default="0.1.0")
     parser.add_argument("--mark-available", action="store_true")
+    parser.add_argument("--release-notes", default="")
+    parser.add_argument("--signature-status", default="")
     args = parser.parse_args()
 
-    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    data = json.loads(MANIFEST.read_text(encoding="utf-8-sig"))
     data["version"] = args.version
     data["released_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if args.release_notes:
+        data["release_notes"] = args.release_notes
+
+    global_fp = os.getenv("RELEASE_SIGNER_FINGERPRINT")
+    if global_fp:
+        data["signer_fingerprint"] = global_fp
 
     for key, (filename, url) in ARTIFACTS.items():
         path = ROOT / "releases" / filename
@@ -45,6 +74,21 @@ def main() -> None:
         data["platforms"][key]["sha256"] = sha256(path)
         if args.mark_available:
             data["platforms"][key]["available"] = True
+
+        env_fp = os.getenv(f"RELEASE_SIGNER_FINGERPRINT_{key.upper()}")
+        if env_fp:
+            data["platforms"][key]["signer_fingerprint"] = env_fp
+
+        if args.signature_status:
+            data["platforms"][key]["signature_status"] = args.signature_status
+        elif key == "macos":
+            status, authority = _macos_signature_status(path)
+            data["platforms"][key]["signature_status"] = status
+            if authority and not data["platforms"][key].get("signer_fingerprint"):
+                data["platforms"][key]["signer_fingerprint"] = authority
+        elif not data["platforms"][key].get("signature_status"):
+            data["platforms"][key]["signature_status"] = "unsigned"
+
         print(f"Updated {key}")
 
     text = json.dumps(data, indent=2) + "\n"

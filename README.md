@@ -34,7 +34,7 @@ See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)**
 ```text
   ┌─────────────┐     unlock      ┌──────────────┐     Esplora     ┌──────────┐
   │  SvelteKit  │ ◄──────────────►│  FastAPI     │ ◄──────────────►│ testnet  │
-  │  UI :5173   │   wallet keys   │  API :8001   │   sync / send   │  chain   │
+  │  UI :5173   │   wallet keys   │  API :8002   │   sync / send   │  chain   │
   └─────────────┘                 └──────────────┘                 └──────────┘
          │                               │
          │         encrypted seeds       │
@@ -106,7 +106,7 @@ python scripts/seed_admin.py
 | Service | URL |
 |---------|-----|
 | **UI** | http://localhost:5173 |
-| **API** | http://127.0.0.1:8001 |
+| **API** | http://127.0.0.1:8002 |
 
 Sign in as `admin` with the password matching `ADMIN_PASSWORD_HASH`.
 
@@ -128,6 +128,53 @@ Manual testnet steps: [`docs/TESTNET_CHECKLIST.md`](docs/TESTNET_CHECKLIST.md)
 4. **Sync** → **Receive** / **Send**
 
 > Your wallet passphrase encrypts recovery phrases. The server admin cannot decrypt them without it.
+
+---
+
+## Desktop release (Windows / macOS)
+
+Operator checklist (security gate + toolchain, no build):
+
+```powershell
+.\scripts\operator-release-checklist.ps1
+```
+
+Build desktop installers after the security gate passes:
+
+```powershell
+.\scripts\build-windows.ps1
+```
+
+```bash
+./scripts/build-mac.sh
+```
+
+Each build script runs `verify_release_security.py`, optional signing, updates `releases/releases.json`, and calls `finalize-release` to sync artifacts into `site/static/releases/` for deploy.
+
+Pre-release checks (also run in CI):
+
+```bash
+python scripts/verify_release_security.py
+```
+
+**Optional signing env**
+
+| Variable | Platform |
+|----------|----------|
+| `WIN_SIGN_CERT_PATH`, `WIN_SIGN_CERT_PASSWORD`, `SIGNTOOL_PATH` | Windows Authenticode |
+| `APPLE_SIGNING_IDENTITY`, `APPLE_NOTARY_*` | macOS codesign + notarization |
+| `RELEASE_SIGNER_FINGERPRINT` / `_WINDOWS` / `_MACOS` | Manifest publisher thumbprints |
+
+**Publish:** commit `releases/releases.json`, then deploy:
+
+```powershell
+$env:CLOUDFLARE_API_TOKEN = '<token>'
+.\scripts\deploy-site.ps1
+```
+
+Or trigger GitHub Actions **Release desktop** with `mark_available` enabled (builds, updates manifest, deploys when Cloudflare secrets are configured). Pushing `releases.json` alone updates the manifest on CI but **not** gitignored binaries — use `deploy-site` after a local build.
+
+Production sidecar template: [`.env.production.desktop.example`](.env.production.desktop.example). Set `STRICT_SECRETS`, `WALLET_DB_KEY`, and strong secrets before distributing. With `WALLET_DB_KEY`, the API seals `wallet.db` → `wallet.db.cwenc` on graceful shutdown.
 
 ---
 
@@ -225,7 +272,7 @@ On the same Wi‑Fi, open `http://<your-pc-ip>:5173`.
 <summary><strong>Can't log in</strong></summary>
 
 - Verify hash: `python scripts/hash_password.py yourpassword` matches `ADMIN_PASSWORD_HASH` in `.env`
-- Health check: `GET http://127.0.0.1:8001/api/health` → `{"status":"ok"}`
+- Health check: `GET http://127.0.0.1:8002/api/health` → `{"status":"ok"}`
 - Hard-refresh or clear session storage if an old token is stuck
 
 </details>
@@ -265,7 +312,7 @@ CoinWallet/
 └── docs/             # TESTNET_CHECKLIST.md
 ```
 
-**Ports:** API `8001`, UI dev server `5173` · Start: `.\start_admin.ps1`
+**Ports:** API `8002` (desktop + dev), UI dev server `5173` · Start: `.\start_admin.ps1` or Tauri app
 
 **Stack:** Python / FastAPI / SQLite · SvelteKit 5 · embit + Esplora · Tauri (desktop)
 
@@ -301,24 +348,24 @@ CoinWallet/
 | `BITCOIN_BACKEND_URI` | Esplora base URL |
 | `WALLET_UNLOCK_TTL` | Unlock session seconds |
 | `STRICT_SECRETS` | Fail startup on weak secrets (production) |
+| `WALLET_DB_KEY` | Seal `wallet.db` as `wallet.db.cwenc` on API shutdown |
 | `SECURE_COOKIES` | HTTPS-only cookies (production) |
 
 ### Phase status
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| **1** | Auth, schema, UI shell | ✓ |
-| **2** | Keys, Esplora sync, send/receive | ✓ |
-| **3** | Download website (all platforms) | planned |
-| **4** | Leaderboard (opt-in, app + website) | planned |
-| **5** | Desktop apps (Tauri — Windows + Mac) | planned |
-| **6** | ~~Mobile apps~~ | **out of scope** (desktop only) |
-| **7** | Wasabi features (coin control, privacy score, labels) | ✓ |
-| **8** | Advisor AI tab (on-device guidance, no trading) | planned |
-| **9** | Web release polish, install docs, optional live sync / Core RPC | planned |
-| **10** | Multi-asset (BTC + XMR) + user-initiated BTC↔XMR swap | planned |
+| **1–2** | Auth, wallet core | ✓ |
+| **3–5** | Download site + Tauri desktop | ✓ |
+| **4** | Leaderboard | ✓ |
+| **6** | ~~Mobile apps~~ | **out of scope** |
+| **7–8** | Privacy + Advisor AI | ✓ |
+| **9** | Web release polish | ✓ |
+| **10** | BTC + XMR + swap | ✓ |
+| **11** | Security hardening | ✓ |
+| **12** | Release readiness | in progress |
 
-Full details in [PLAN.md](./PLAN.md).
+Full details in [`.cursor/COINWALLET_MASTER_PLAN.md`](.cursor/COINWALLET_MASTER_PLAN.md).
 
 ### Cursor rules
 

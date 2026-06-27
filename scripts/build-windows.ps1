@@ -14,6 +14,10 @@ if (-not (Test-Path "admin\node_modules")) {
     Pop-Location
 }
 
+Write-Host "Pre-release security checks..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "..\venv\Scripts\python.exe") (Join-Path $PSScriptRoot "verify_release_security.py")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "Building admin UI (desktop)..." -ForegroundColor Cyan
 npm run build:desktop --prefix admin
 
@@ -30,7 +34,11 @@ New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
 Copy-Item $exe $dest -Force
 Write-Host "Copied to $dest" -ForegroundColor Green
 
+& (Join-Path $PSScriptRoot "sign-release-windows.ps1") -FilePath $dest
+
 $version = (Get-Content "src-tauri\tauri.conf.json" -Raw | ConvertFrom-Json).version
 & (Join-Path $PSScriptRoot "update-releases-manifest.ps1") -Version $version -MarkAvailable
+
+& (Join-Path $PSScriptRoot "finalize-release.ps1") -Version $version
 
 Write-Host "Done. Run the installer from src-tauri\target\release\bundle\ if needed." -ForegroundColor Green

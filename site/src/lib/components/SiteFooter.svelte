@@ -7,6 +7,7 @@
       <a href="/privacy" class="transition-colors hover:text-foreground">Privacy</a>
       <a href="/terms" class="transition-colors hover:text-foreground">Terms</a>
       <a href="/download" class="transition-colors hover:text-foreground">Download</a>
+      <a href="/install" class="transition-colors hover:text-foreground">Install</a>
     </div>
   </div>
 </footer>

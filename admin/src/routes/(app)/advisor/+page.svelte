@@ -10,6 +10,8 @@
 	import AlertTriangleIcon from '@lucide/svelte/icons/triangle-alert';
 	import InfoIcon from '@lucide/svelte/icons/info';
 	import CircleHelpIcon from '@lucide/svelte/icons/circle-help';
+	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import CircleXIcon from '@lucide/svelte/icons/circle-x';
 
 	let report: AdvisorReport | null = $state(null);
 	let error = $state('');
@@ -30,7 +32,12 @@
 		loading = true;
 		error = '';
 		try {
-			const [status, security] = await Promise.all([api.status(), api.walletSecurity()]);
+			const [status, security, settings, swapHist] = await Promise.all([
+				api.status(),
+				api.walletSecurity(),
+				api.settings(),
+				api.swapHistory().catch(() => ({ swaps: [] }))
+			]);
 
 			let balance = null;
 			let transactions: Awaited<ReturnType<typeof api.walletTransactions>> = [];
@@ -60,7 +67,9 @@
 				transactions,
 				privacy,
 				security,
-				status
+				status,
+				settings,
+				swapHistory: swapHist.swaps
 			});
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load advisor';
@@ -97,6 +106,27 @@
 					<Card.Title>{section.title}</Card.Title>
 					<Card.Description>{section.summary}</Card.Description>
 				</Card.Header>
+				{#if section.checklist?.length}
+					<Card.Content class="space-y-2 border-b pb-4">
+						<ul class="space-y-2 text-sm">
+							{#each section.checklist as item (item.id)}
+								<li class="flex items-start gap-2">
+									{#if item.passed}
+										<CircleCheckIcon class="mt-0.5 size-4 shrink-0 text-success" />
+									{:else}
+										<CircleXIcon class="mt-0.5 size-4 shrink-0 text-destructive" />
+									{/if}
+									<div>
+										<p class="font-medium">{item.label}</p>
+										{#if item.detail}
+											<p class="text-muted-foreground">{item.detail}</p>
+										{/if}
+									</div>
+								</li>
+							{/each}
+						</ul>
+					</Card.Content>
+				{/if}
 				{#if section.tips.length > 0}
 					<Card.Content class="space-y-3">
 						{#each section.tips as tip (tip.id)}
