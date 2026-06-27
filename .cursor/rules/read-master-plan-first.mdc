@@ -5,14 +5,12 @@ alwaysApply: true
 
 # Read Master Plan First
 
-**Before doing ANY work in this repo**, read these files in order:
+**Before doing ANY work in this repo**, read `.cursor/COINWALLET_MASTER_PLAN.md` completely.
 
-1. `.cursor/COINWALLET_MASTER_PLAN.md` — full product plan, task list, loop protocol
-2. `.cursor/LOOP_STATE.json` — current phase and next task id
-3. `PROGRESS.md` — what was done on prior loop ticks
+That file is the **plan and the loop** — task list, loop status, loop log, and progress all live there.
 
-Then execute **only** the next incomplete task from the master plan unless the user gave a different explicit instruction for this message.
+Then execute **only** the next incomplete task (see **Loop status** at the top) unless the user gave a different explicit instruction for this message.
 
-After completing a task, update `LOOP_STATE.json` and append a row to `PROGRESS.md`.
+After completing a task, update the master plan: mark the task ✓, refresh **Loop status**, append to **Loop log**.
 
 Do not skip reading the master plan. Do not start trading AI features. Do not commit unless the user asks.

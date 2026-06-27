@@ -1,7 +1,25 @@
 # CoinWallet — Master Plan (AI must read this first)
 
-> **This file is the single source of truth.** Every agent session and every 15-minute loop tick starts here.
-> State tracker: `.cursor/LOOP_STATE.json` · Human log: `PROGRESS.md`
+> **This file is the single source of truth** — product plan, task list, loop state, and progress log. Every agent session and every 15-minute loop tick starts here.
+
+## Loop status
+
+| Field | Value |
+|-------|-------|
+| **Current phase** | 3 — Download website |
+| **Next task** | **3.5** — `releases.json` manifest |
+| **Last completed** | 3.4 |
+| **Last loop tick** | 2026-06-27 |
+
+### Loop log
+
+| Timestamp | Task | Result |
+|-----------|------|--------|
+| — | Loop initialized | Phases 1–2 done in web prototype; starting Phase 3 at 3.1 |
+| 2026-06-27 | 3.1 | Scaffolded `site/` SvelteKit + Tailwind; dark/green theme; `npm install` + build OK |
+| 2026-06-27 | 3.2 | Home page: hero, 6 feature cards, dual CTAs to /download; build OK |
+| 2026-06-27 | 3.3 | Download page: 4 platform cards with coming-soon badges and install notes |
+| 2026-06-27 | 3.4 | OS auto-detect on /download; highlights user's platform card |
 
 ---
 
@@ -10,18 +28,14 @@
 ### On every loop tick OR when user says "continue" / "loop" / no specific task
 
 1. Read this file completely.
-2. Read `.cursor/LOOP_STATE.json`.
-3. Read `PROGRESS.md` (last 5 entries).
-4. Find the **lowest-numbered incomplete task** (e.g. `3.1` before `3.2`).
-5. Implement **exactly ONE task** end-to-end in this tick.
-6. Update state:
-   - Set `current_task_id` to the **next** incomplete task.
-   - Append task id to `completed_tasks`.
-   - Set `last_loop_at` to ISO timestamp.
-   - Set `last_completed_task` to the task just finished.
-   - When all tasks in a phase are done, increment `current_phase` and update `phase_name`.
-7. Append one row to `PROGRESS.md` loop log.
-8. If blocked, write `notes` in `LOOP_STATE.json` and pick the next unblocked task in the same phase; do not skip phases.
+2. Find the **lowest-numbered incomplete task** (check ✓ in phase tables below; e.g. `3.1` before `3.2`).
+3. Implement **exactly ONE task** end-to-end in this tick.
+4. Update this file:
+   - Mark the task ✓ in its phase table.
+   - Update **Loop status** (next task, last completed, last loop tick timestamp).
+   - Append one row to **Loop log**.
+   - When all tasks in a phase are done, mark the phase header ✓.
+5. If blocked, add a note under **Loop status** and pick the next unblocked task in the same phase; do not skip phases.
 
 ### Loop constraints
 
@@ -30,7 +44,7 @@
 - **No tests** unless the user asks (they test manually).
 - **Minimize cost** — free Esplora, no paid LLM APIs, no cloud hosting until deploy tasks.
 - **Minimize scope** — match existing code style; no unrelated refactors.
-- **Safety** — testnet default; never log or return mnemonics; never expose `encrypted_seed` in GET.
+- **Safety** — testnet default; never log or return mnemonics or passphrases; never expose `encrypted_seed` in GET; reject weak secrets in production builds (`STRICT_SECRETS=true`).
 
 ### Loop interval
 
@@ -40,20 +54,31 @@ Background timer fires every **15 minutes** (`900s`) with sentinel `AGENT_LOOP_T
 
 ## 2. Product vision
 
-**CoinWallet** — cross-platform non-custodial Bitcoin wallet for:
+**CoinWallet** — cross-platform non-custodial wallet, **Bitcoin-first** with optional **Monero (XMR)** support:
 
 | Platform | Technology | Distribution |
 |----------|------------|--------------|
-| Windows | Tauri 2 | `.exe` via download site |
-| Mac | Tauri 2 | `.dmg` via download site |
-| iPhone | Capacitor | App Store link on download site |
-| Samsung / Android | Capacitor | APK + Play Store link on download site |
+| Windows | Tauri 2 | `.exe` from download site (no Microsoft Store) |
+| Mac | Tauri 2 | `.dmg` from download site (no Mac App Store) |
+| iPhone | Capacitor | `.ipa` + sideload install guide on download site (no App Store) |
+| Samsung / Android | Capacitor | `.apk` sideload from download site (no Play Store) |
+
+**Distribution policy:** direct downloads only — no App Store, Play Store, or other store listings. Saves store fees and review overhead; users install from the public website.
+
+**Assets (phased):**
+| Asset | Phase | Notes |
+|-------|-------|-------|
+| **BTC** | 1–2 ✓ | BIP84 native segwit, Esplora sync |
+| **XMR** | 10 | Separate Monero wallet; stagenet/testnet first |
+| **BTC ↔ XMR swap** | 10 | User-initiated only — quote, review, confirm (privacy exit) |
 
 **Public download website** — home, downloads (all platforms), leaderboard, privacy/terms.
 
-**In-app tabs:** Dashboard · Wallets · Receive · Send · Coin Control · Transactions · Privacy · Advisor AI · Leaderboard · Settings
+**In-app tabs:** Dashboard · Wallets · Receive · Send · **Swap** · Coin Control · Transactions · Privacy · Advisor AI · Leaderboard · Settings
 
-**Out of scope forever:** trading AI, buy/sell signals, exchange integration, automated trades, cloud LLM for wallet data.
+**Out of scope forever:** trading AI, buy/sell signals, automated market trading, portfolio rebalancing bots, cloud LLM for wallet data.
+
+**In scope (Phase 10):** hold XMR alongside BTC; **user-initiated** BTC→XMR (and XMR→BTC) swap — same UX pattern as Send (preview fees/rate, unlock required, no background trading).
 
 ---
 
@@ -62,14 +87,16 @@ Background timer fires every **15 minutes** (`900s`) with sentinel `AGENT_LOOP_T
 ```
 site/                    ← Download website (SvelteKit static)
 admin/                   ← Wallet app UI (SvelteKit 5 + shadcn-svelte) — shared on all platforms
-api/                     ← FastAPI (auth, wallet, leaderboard, admin)
-src/wallet/              ← BIP84 keys, Esplora sync, wallet engine (embit)
+api/                     ← FastAPI (auth, wallet, swap, leaderboard, admin)
+src/wallet/              ← BIP84 BTC engine + Monero engine (Phase 10)
+src/wallet/xmr/          ← XMR keys, sync, send (Phase 10)
 src/database.py          ← SQLite schema
 releases/                ← Build artifacts + releases.json manifest (gitignored binaries)
 .cursor/
-  COINWALLET_MASTER_PLAN.md   ← THIS FILE
-  LOOP_STATE.json             ← Current task pointer
+  COINWALLET_MASTER_PLAN.md   ← THIS FILE (plan + loop state + log)
 ```
+
+**Multi-asset model (Phase 10):** `wallets.asset_type` = `btc` | `xmr`. Each asset has its own encrypted seed, sync backend, and receive/send flows. Dashboard aggregates balances by asset.
 
 **Data flow — leaderboard (opt-in only):**
 App syncs wallet → if opt-in → `POST /api/leaderboard/update` with `{ display_name, balance_sats, network }` → SQLite → `GET /api/leaderboard?network=testnet` → app tab + site page.
@@ -127,25 +154,43 @@ Key paths:
 
 **Goal:** Public `site/` SvelteKit project — marketing + downloads for all platforms.
 
-| ID | Task | Deliverable |
-|----|------|-------------|
-| 3.1 | Scaffold `site/` SvelteKit project (Tailwind, match admin aesthetic) | `site/package.json`, `site/src/routes/+page.svelte` |
-| 3.2 | Home page — hero, features, CTA to /download | `site/src/routes/+page.svelte` |
-| 3.3 | Download page — 4 platform cards (Windows, Mac, iPhone, Android) | `site/src/routes/download/+page.svelte` |
-| 3.4 | OS auto-detect — highlight current platform on /download | `site/src/lib/detect-os.ts` |
-| 3.5 | `releases.json` manifest — version, URLs, SHA-256 per platform | `releases/releases.json` |
-| 3.6 | Privacy page — non-custodial + leaderboard opt-in policy | `site/src/routes/privacy/+page.svelte` |
-| 3.7 | Terms page (minimal) | `site/src/routes/terms/+page.svelte` |
-| 3.8 | Shared nav header/footer across site pages | `site/src/lib/components/SiteNav.svelte` |
-| 3.9 | Leaderboard page shell (static layout; API wired in Phase 4) | `site/src/routes/leaderboard/+page.svelte` |
-| 3.10 | Static adapter config for Cloudflare Pages / GitHub Pages | `site/svelte.config.js` adapter-static |
-| 3.11 | README section — how to build and deploy site | `site/README.md` |
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 3.1 | Scaffold `site/` SvelteKit project (Tailwind, match admin aesthetic) | `site/package.json`, `site/src/routes/+page.svelte` | ✓ |
+| 3.2 | Home page — hero, features, CTA to /download | `site/src/routes/+page.svelte` | ✓ |
+| 3.3 | Download page — 4 platform cards (Windows, Mac, iPhone, Android) | `site/src/routes/download/+page.svelte` | ✓ |
+| 3.4 | OS auto-detect — highlight current platform on /download | `site/src/lib/detect-os.ts` | ✓ |
+| 3.5 | `releases.json` manifest — version, URLs, SHA-256, signature + signer fingerprint per platform (feeds Phase 11.1–11.2) | `releases/releases.json` | |
+| 3.6 | Privacy page — non-custodial, leaderboard opt-in, swap provider disclosure, sideload trust model | `site/src/routes/privacy/+page.svelte` | |
+| 3.7 | Terms page (minimal) | `site/src/routes/terms/+page.svelte` | |
+| 3.8 | Shared nav header/footer across site pages | `site/src/lib/components/SiteNav.svelte` | |
+| 3.9 | Leaderboard page shell (static layout; API wired in Phase 4) | `site/src/routes/leaderboard/+page.svelte` | |
+| 3.10 | Static adapter config for Cloudflare Pages / GitHub Pages | `site/svelte.config.js` adapter-static | |
+| 3.11 | README section — how to build and deploy site | `site/README.md` | |
 
 **Download page buttons (until real builds exist):**
 - Windows → `releases/coinwallet-windows-x64.exe` (placeholder `#` ok with "Coming soon" badge)
-- Mac → `releases/coinwallet-macos.dmg`
-- iPhone → App Store URL placeholder
-- Android → `releases/coinwallet-android.apk`
+- Mac → `releases/coinwallet-macos.dmg` (+ Gatekeeper / “Open anyway” note)
+- iPhone → `releases/coinwallet-ios.ipa` + link to sideload guide (AltStore / similar; no App Store)
+- Android → `releases/coinwallet-android.apk` (+ “Allow unknown sources” note)
+
+Each file lists version, SHA-256, code signature metadata, and short install steps — no store badges or store URLs.
+
+**`releases.json` schema (task 3.5):**
+```json
+{
+  "version": "0.0.0",
+  "released_at": "ISO-8601",
+  "min_supported_version": "0.0.0",
+  "signer_fingerprint": "hex or cert thumbprint",
+  "platforms": {
+    "windows": { "url": "...", "sha256": "...", "signature": "...", "signer_fingerprint": "...", "available": false },
+    "macos": { "..." },
+    "android": { "..." },
+    "ios": { "..." }
+  }
+}
+```
 
 ---
 
@@ -156,7 +201,7 @@ Key paths:
 | ID | Task | Deliverable |
 |----|------|-------------|
 | 4.1 | DB table `leaderboard_entries` (user_id, display_name, balance_sats, network, updated_at, opted_in) | `src/database.py` migration |
-| 4.2 | `GET /api/leaderboard?network=testnet&limit=100` — public, no auth | `api/leaderboard.py` |
+| 4.2 | `GET /api/leaderboard?network=testnet&limit=100` — public, no auth; rate limit + short TTL cache (see 11.17) | `api/leaderboard.py` |
 | 4.3 | `POST /api/leaderboard/opt-in` — body: `{ display_name, opted_in }` | `api/leaderboard.py` |
 | 4.4 | `POST /api/leaderboard/update` — auth required; body: `{ balance_sats, network }` | `api/leaderboard.py` |
 | 4.5 | Register leaderboard router in `api/main.py` | |
@@ -180,7 +225,7 @@ Key paths:
 |----|------|-------------|
 | 5.1 | Init Tauri 2 in repo root or `desktop/` | `src-tauri/` |
 | 5.2 | Point Tauri webview at built `admin/` static output | `tauri.conf.json` |
-| 5.3 | Embed or sidecar FastAPI for local wallet API | sidecar script |
+| 5.3 | Embed or sidecar FastAPI for local wallet API — bind `127.0.0.1` only, `STRICT_SECRETS=true` (see 11.10, 11.20) | sidecar script |
 | 5.4 | Windows build script | `scripts/build-windows.ps1` |
 | 5.5 | Mac build script | `scripts/build-mac.sh` |
 | 5.6 | Copy artifacts to `releases/` + update `releases.json` | |
@@ -198,9 +243,9 @@ Key paths:
 | 6.3 | Android project scaffold | `android/` |
 | 6.4 | Mobile bottom nav layout (replace sidebar on small screens) | layout component |
 | 6.5 | Touch-friendly send/receive flows | |
-| 6.6 | Secure storage for encryption keys (Keychain / Keystore) | native plugin |
+| 6.6 | Secure storage for encryption keys — iOS Keychain `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; Android Keystore non-exportable | native plugin |
 | 6.7 | QR scanner on Receive (camera permission) | |
-| 6.8 | Update download page with store links / APK path | |
+| 6.8 | Update download page with APK / IPA paths + sideload install guides | |
 
 ---
 
@@ -227,26 +272,66 @@ Key paths:
 | 8.5 | Privacy tips from UTXO state | |
 | 8.6 | Security checklist (backup, passphrase, network) | |
 | 8.7 | Static Bitcoin FAQ content | |
-| 8.8 | **Verify:** no trading/signals/exchange code anywhere | |
+| 8.8 | **Verify:** no automated trading bot, signals, or background swap jobs (Phase 10 swap is user-initiated only) | |
 
 ---
 
-## 13. Phase 9 — Polish & stores
+## 13. Phase 9 — Polish & web release
 
 | ID | Task | Deliverable |
 |----|------|-------------|
 | 9.1 | App icons all platforms (1024 master) | |
 | 9.2 | Splash screens mobile | |
-| 9.3 | Mainnet gate audit (mobile + desktop) | |
+| 9.3 | Mainnet gate audit (mobile + desktop) — require v2 passphrase encryption + signed release acknowledgment | |
 | 9.4 | Backup flow audit — mnemonic shown once | |
-| 9.5 | Deploy download site to Cloudflare Pages | |
-| 9.6 | App Store / Play Store listing copy | |
+| 9.5 | Deploy download site to Cloudflare Pages (free tier) | |
+| 9.6 | Per-platform install docs on site (Windows, Mac, Android APK, iOS sideload) | `site/src/routes/download/` or `/install` |
 | 9.7 | Optional: WebSocket live sync | |
 | 9.8 | Optional: Bitcoin Core RPC backend | |
 
 ---
 
-## 14. API spec reference (leaderboard)
+## 14. Phase 10 — Multi-asset & BTC↔XMR swap
+
+**Goal:** Hold Monero (XMR) in the same app as Bitcoin; let the user manually swap BTC→XMR (or back) for privacy — **not** a trading bot.
+
+**Swap UX (same trust model as Send):**
+1. User picks direction (BTC→XMR or XMR→BTC), amount, destination wallet
+2. App fetches quote (rate, network fee, swap provider fee, min/max)
+3. User reviews and confirms (wallet unlock required)
+4. App executes or returns deposit instructions; status tracked until settled
+
+**Provider strategy (pick one per task 10.8; prefer non-custodial):**
+- **Preferred:** Atomic swap / Haveno-style P2P (self-hosted or public Haveno node)
+- **Fallback:** User-selected swap API with full disclosure (SideShift, FixedFloat, etc.) — clearly label custodial risk
+- **Never:** Embedded exchange account, API keys stored server-side, or auto-rebalancing
+
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 10.1 | DB migration — `wallets.asset_type` (`btc`\|`xmr`), XMR-specific columns | `src/database.py` | |
+| 10.2 | XMR key generation + encrypted seed storage (25-word Monero mnemonic) | `src/wallet/xmr/keys.py` | |
+| 10.3 | XMR sync backend — wallet-rpc sidecar or lightweight indexer | `src/wallet/xmr/sync.py` | |
+| 10.4 | XMR receive (primary + subaddress) + send | `api/wallet.py` or `api/xmr.py` | |
+| 10.5 | Wallets UI — filter/create by asset; asset badge on dashboard | `admin/.../wallets`, dashboard | |
+| 10.6 | XMR receive/send pages (or unified Receive/Send with asset picker) | `admin/src/routes/(app)/` | |
+| 10.7 | `GET /api/swap/quote` — `{ from_asset, to_asset, amount }` → rate + fees | `api/swap.py` | |
+| 10.8 | Swap provider adapter interface + first provider (Haveno or documented API) | `src/wallet/swap/` | |
+| 10.9 | `POST /api/swap/execute` — create swap record, return deposit address / tx steps | `api/swap.py` | |
+| 10.10 | `/swap` route — quote form, review screen, status/history | `admin/.../swap/+page.svelte` | |
+| 10.11 | Swap history table + explorer links per asset | DB + UI | |
+| 10.12 | Advisor AI — swap privacy tips (when to swap, fee tradeoffs) | `admin/src/lib/advisor/` | |
+| 10.13 | Stagenet/testnet defaults for XMR; mainnet gate matches BTC | env + settings | |
+| 10.14 | **Verify:** no automated trading, signals, or background swap jobs | audit | |
+
+**Privacy rules:**
+- Swap is opt-in per transaction — never auto-convert received BTC
+- Show full quote breakdown before confirm
+- Log swap events in audit (amounts + provider; no mnemonics or private keys)
+- XMR view keys / spend keys never exposed in GET or logs
+
+---
+
+## 15. API spec reference (leaderboard)
 
 ```
 GET  /api/leaderboard?network=testnet&limit=100
@@ -262,9 +347,26 @@ DELETE /api/leaderboard/opt-out       (auth)
 → removes user's entry
 ```
 
+### Swap (Phase 10)
+
+```
+GET  /api/swap/providers
+→ { providers: [{ id, name, type: "atomic"|"api", custodial: bool }] }
+
+GET  /api/swap/quote?from=btc&to=xmr&amount_sats=100000&provider=haveno
+→ { rate, receive_amount_atomic, fees: { network, provider }, min, max, expires_at }
+
+POST /api/swap/execute                (auth, wallet unlocked)
+→ { from_asset, to_asset, amount, provider, destination_wallet_id }
+← { swap_id, status: "awaiting_deposit"|"processing", deposit_address?, deposit_amount? }
+
+GET  /api/swap/{swap_id}              (auth)
+→ { status, from_amount, to_amount, txids, created_at, settled_at }
+```
+
 ---
 
-## 15. UI nav (final app sidebar)
+## 16. UI nav (final app sidebar)
 
 Order in `app-sidebar.svelte`:
 
@@ -272,17 +374,18 @@ Order in `app-sidebar.svelte`:
 2. Wallets `/wallets`
 3. Receive `/receive`
 4. Send `/send`
-5. Coin Control `/utxos`
-6. Transactions `/transactions`
-7. Privacy `/privacy`
-8. Advisor AI `/advisor`
-9. Leaderboard `/leaderboard`
-10. Settings `/settings`
-11. Admin `/admin` (admin role only)
+5. Swap `/swap` *(Phase 10 — BTC↔XMR)*
+6. Coin Control `/utxos`
+7. Transactions `/transactions`
+8. Privacy `/privacy`
+9. Advisor AI `/advisor`
+10. Leaderboard `/leaderboard`
+11. Settings `/settings`
+12. Admin `/admin` (admin role only)
 
 ---
 
-## 16. Site nav (download website)
+## 17. Site nav (download website)
 
 1. Home `/`
 2. Download `/download`
@@ -292,36 +395,39 @@ Order in `app-sidebar.svelte`:
 
 ---
 
-## 17. Cost & privacy defaults
+## 18. Cost & privacy defaults
 
 - Esplora (Blockstream) — free chain data
+- **No app stores** — distribute via download site only (no Apple/Google/Microsoft store fees or listings)
+- Static site on Cloudflare Pages / GitHub Pages — free tier
 - No cloud LLM at launch
 - Leaderboard: display name + balance only, opt-in
-- Testnet default until user enables mainnet
+- Testnet/stagenet default until user enables mainnet
 - Non-custodial — keys never leave device unencrypted
+- XMR swap: user confirms every conversion; no background trading
 
 ---
 
-## 18. Current pointer
+## 19. Current pointer
 
-**Next task:** read `.cursor/LOOP_STATE.json` → field `current_task_id`
+**Next task:** **3.5** — `releases/releases.json` manifest (see Phase 3 table above).
 
-When Phase 3 starts: **3.1** — scaffold `site/` SvelteKit project.
+Update **Loop status** at the top of this file after every tick.
 
 ---
 
-## 19. Quick decision tree
+## 20. Quick decision tree
 
 ```
 User message vague or loop tick?
-  → Read this file + LOOP_STATE.json
-  → Do current_task_id
-  → Update state + PROGRESS.md
+  → Read this file
+  → Do next incomplete task (Loop status → phase tables)
+  → Update Loop status + Loop log + task ✓ in this file
 
 User gives specific task?
   → Still read this file for context
   → Do user's task (may override loop pointer temporarily)
-  → Update LOOP_STATE.json if task matches a numbered item
+  → Mark matching task ✓ if applicable
 
 User says stop loop?
   → Kill loop shell PID, do not arm next tick
@@ -329,4 +435,81 @@ User says stop loop?
 
 ---
 
-*Last plan revision: 2026-06-27 — includes download site, leaderboard, 15-min loop, cross-platform apps, Advisor AI (no trading).*
+## 21. Phase 11 — Security hardening
+
+**Goal:** Close supply-chain, API, key-lifecycle, and public-surface gaps before mainnet and real-money swap. Builds on existing bcrypt sessions, AES-GCM seeds, rate limiting, and passphrase unlock (v2 DEK).
+
+**Priority (highest ROI before real money):** 11.1 → 11.11 → 11.20 → 11.12–11.13 → 11.25–11.26, then remainder.
+
+### 11.1 Supply chain & release integrity
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.1 | Sign all release artifacts (Windows Authenticode, macOS codesign + notarize, APK v2 signing) | build scripts in Phase 5/6 |
+| 11.2 | Publish signing public keys / cert fingerprints on site + in `releases.json` | `site/src/routes/download/` |
+| 11.3 | Document verify steps per platform (`Get-FileHash`, `codesign -v`, `apksigner verify`) | install docs (Phase 9.6) |
+| 11.4 | CI reproducible build + artifact hash pinned in manifest | GitHub Actions (optional, free tier) |
+
+### 11.2 API & session hardening
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.5 | Production CORS allowlist via env (`CORS_ORIGINS`); deny `*` with credentials | `api/main.py` |
+| 11.6 | Security headers middleware (CSP, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) | `api/middleware.py` |
+| 11.7 | CSRF protection for cookie-authenticated mutating routes OR document SameSite-only model for native shells | `api/auth.py` + admin fetch wrapper |
+| 11.8 | Extend rate limits: login, unlock, send, swap execute; optional Redis/file backend for multi-process | `api/rate_limit.py` |
+| 11.9 | Session rotation on login + idle timeout (separate from 7-day max age) | `api/auth.py` |
+| 11.10 | `STRICT_SECRETS=true` required in production builds (Tauri/Capacitor sidecar env) | Phase 5.3 sidecar config |
+
+### 11.3 Wallet & key lifecycle
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.11 | Force v2 (passphrase-only DEK) migration before mainnet; block send if legacy wallets remain | `api/security.py` + UI banner |
+| 11.12 | Auto-lock wallet after idle timeout (configurable in Settings) | `src/wallet/vault.py` + Settings UI |
+| 11.13 | Clear in-memory DEK on lock, app background, and logout | vault + Tauri/Capacitor lifecycle hooks |
+| 11.14 | Mnemonic display: single-use modal, no clipboard auto-copy, explicit "I wrote it down" | Phase 9.4 backup audit |
+| 11.15 | SQLite encryption at rest (SQLCipher or OS-level file encryption on desktop/mobile) | Phase 5/6 packaging |
+
+### 11.4 Leaderboard & public surface
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.16 | Display name validation (length, charset, block impersonation of "admin"/"CoinWallet") | `api/leaderboard.py` |
+| 11.17 | Rate limit public GET; cache responses (CDN or short TTL) | leaderboard router |
+| 11.18 | Balance update: reject impossible jumps, cap update frequency per user | `POST /api/leaderboard/update` |
+| 11.19 | Privacy page documents exactly what is sent — leaderboard data flow diagram | `site/.../privacy/` |
+
+### 11.5 Desktop & mobile shell
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.20 | Bind FastAPI sidecar to `127.0.0.1` only; reject non-local Host headers | Tauri sidecar |
+| 11.21 | Tauri allowlist: disable arbitrary IPC, file system, and remote URL loading except Esplora | `tauri.conf.json` |
+| 11.22 | Capacitor: certificate pinning for Esplora (optional toggle) + no cleartext HTTP | `capacitor.config.ts` |
+| 11.23 | Android backup disabled; iOS Data Protection for Keychain items | native configs |
+| 11.24 | Screenshot/recents blur on mnemonic and unlock screens (mobile) | UI overlay |
+
+### 11.6 Swap & XMR
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.25 | Provider allowlist in config; no arbitrary URL from client | `src/wallet/swap/` |
+| 11.26 | Quote expiry enforced server-side; reject stale execute | `api/swap.py` |
+| 11.27 | Swap deposit addresses shown once with checksum verification | swap UI |
+| 11.28 | XMR view/spend keys never in API responses — automated grep/audit in Phase 10.14 verify | audit script |
+
+### 11.7 Operational security & audit
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 11.29 | Expand audit log: login failures, unlock failures, mainnet enable, swap execute (no secrets) | `src/database.py` |
+| 11.30 | Structured security checklist in Advisor AI tab (Phase 8.6) wired to real wallet state | `admin/src/lib/advisor/` |
+| 11.31 | `.env.example` with all security env vars documented | repo root |
+| 11.32 | Pre-release security review gate: run through checklist before mainnet / real releases | Phase 9 checklist |
+
+**Out of scope for Phase 11 (defer post-launch):** bug bounty, paid pentest, HSM, cloud WAF, Rust BDK migration for security alone.
+
+---
+
+*Last plan revision: 2026-06-27 — Phase 11 security hardening track added.*

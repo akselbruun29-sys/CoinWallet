@@ -16,7 +16,7 @@ Cross-platform Bitcoin wallet for **Windows**, **Mac**, **iPhone**, and **Samsun
 
 </div>
 
-See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** for the full execution plan with granular tasks and 15-minute loop protocol.
+See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** for the full execution plan — it is the plan, loop state, and progress log in one file.
 
 ---
 
@@ -214,7 +214,7 @@ On the same Wi‑Fi, open `http://<your-pc-ip>:5173`.
 | **Settings** | Account, password, network (admin) |
 | **Admin** | Users, approval, audit *(admin only)* |
 | **Logs** | Server logs *(admin only)* |
-| **Advisor AI** | Phase 8 — guidance only, no trading |
+| **Swap** | Phase 10 — BTC↔XMR (user-initiated, quote-and-confirm) |
 | **Leaderboard** | Phase 4 — opt-in ranking by wallet balance |
 
 ---
@@ -315,14 +315,15 @@ CoinWallet/
 | **6** | Mobile apps (Capacitor — iPhone + Android) | planned |
 | **7** | Wasabi features (coin control, privacy score, labels) | ✓ |
 | **8** | Advisor AI tab (on-device guidance, no trading) | planned |
-| **9** | Store polish, live sync, optional Core RPC | ✓ |
+| **9** | Web release polish, install docs, optional live sync / Core RPC | planned |
+| **10** | Multi-asset (BTC + XMR) + user-initiated BTC↔XMR swap | planned |
 
 Full details in [PLAN.md](./PLAN.md).
 
 ### Cursor rules
 
 - `.cursor/rules/wallet-vault.mdc` — architecture and safety rules
-- `.cursor/rules/read-master-plan-first.mdc` — loop protocol
+- `.cursor/rules/read-master-plan-first.mdc` — read master plan (plan + loop)
 
 ### Repository name
 

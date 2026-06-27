@@ -1,7 +1,7 @@
 # CoinWallet — Product Plan
 
-Cross-platform Bitcoin wallet for **Windows**, **Mac**, **iPhone**, and **Samsung / Android**.  
-Non-custodial, privacy-focused, with a single **Advisor AI** tab for guidance — no trading features.
+Cross-platform wallet for **Windows**, **Mac**, **iPhone**, and **Samsung / Android**.  
+Non-custodial, privacy-focused — **Bitcoin-first**, with optional **Monero (XMR)** and user-initiated BTC↔XMR swap (Phase 10). Advisor AI tab for guidance — no trading bot.
 
 ---
 
@@ -11,18 +11,20 @@ CoinWallet is a native app you install on your devices — not a browser-only we
 
 A public **download website** hosts installers for every platform and shows a live **leaderboard** of users with the most coins in their wallet (opt-in only).
 
-**Out of scope:** automated trading, buy/sell signals, exchange integration, or any AI that executes trades.
+**Out of scope:** automated trading bots, buy/sell signals, background swaps, or any AI that executes trades.
+
+**In scope (Phase 10):** hold XMR alongside BTC; manual BTC↔XMR swap (quote, review, confirm — privacy exit, not a trading platform).
 
 ---
 
 ## Platforms
 
-| Platform | Shell | Store / distribution |
-|----------|-------|----------------------|
-| **Windows** | Tauri 2 | `.exe` / Microsoft Store (later) |
-| **Mac** | Tauri 2 | `.dmg` / Mac App Store (later) |
-| **iPhone** | Capacitor + iOS | App Store |
-| **Samsung / Android** | Capacitor + Android | Google Play / sideload APK |
+| Platform | Shell | Distribution (web only — no stores) |
+|----------|-------|-------------------------------------|
+| **Windows** | Tauri 2 | `.exe` from download site |
+| **Mac** | Tauri 2 | `.dmg` from download site |
+| **iPhone** | Capacitor + iOS | `.ipa` + sideload guide (no App Store) |
+| **Samsung / Android** | Capacitor + Android | `.apk` sideload from download site (no Play Store) |
 
 The existing SvelteKit UI (`admin/`) becomes the shared front-end. Tauri wraps it for desktop; Capacitor wraps it for mobile. Wallet logic stays in a local backend (FastAPI embedded in Tauri sidecar today; Rust/BDK migration optional later for smaller mobile binaries).
 
@@ -37,7 +39,7 @@ Public marketing site (e.g. `coinwallet.app`) — separate from the wallet app i
 | Page | Content |
 |------|---------|
 | **Home** | What CoinWallet is, feature highlights, link to downloads |
-| **Download** | One page, all platforms — Windows `.exe`, Mac `.dmg`, iPhone App Store link, Android APK / Play Store link |
+| **Download** | One page, all platforms — Windows `.exe`, Mac `.dmg`, Android `.apk`, iPhone `.ipa` + install guide (no store links) |
 | **Leaderboard** | Public ranking of opt-in users by total wallet balance |
 | **Privacy / Terms** | Non-custodial disclaimer, leaderboard opt-in policy |
 
@@ -46,7 +48,7 @@ Public marketing site (e.g. `coinwallet.app`) — separate from the wallet app i
 - Auto-detect OS and highlight the matching download button
 - Manual pickers for Windows, Mac, iPhone, Samsung / Android
 - Version number + release notes per build
-- Checksums (SHA-256) for desktop/APK files
+- Checksums (SHA-256) and code signature metadata for desktop/APK files
 
 **Hosting:** static site + lightweight API for leaderboard (same FastAPI backend or a small dedicated service). Free-tier friendly — e.g. Cloudflare Pages for the site, single VPS or serverless for the API.
 
@@ -155,7 +157,7 @@ BIP84 wallets (testnet), Esplora sync, receive/send, UTXO and transaction views.
 
 ### Phase 3 — Download website
 - Public site: home, **download page** (Windows / Mac / iPhone / Android), privacy/terms
-- Host build artifacts (`.exe`, `.dmg`, APK) or link to App Store / Play Store
+- Host build artifacts (`.exe`, `.dmg`, `.apk`, `.ipa`) on the site — no app store links
 - OS auto-detect on download page
 - Deploy to free static hosting (Cloudflare Pages, GitHub Pages, etc.)
 
@@ -185,10 +187,30 @@ BIP84 wallets (testnet), Esplora sync, receive/send, UTXO and transaction views.
 - Rule engine + templates wired to wallet state
 - Static help content; no trading module
 
-### Phase 9 — Polish & stores
-- App icons, splash screens, store listings
+### Phase 9 — Polish & web release
+- App icons, splash screens, per-platform install docs on the download site
 - Mainnet gate + backup flows audited for mobile
 - Optional: WebSocket live sync, Bitcoin Core RPC for power users
+
+### Phase 10 — Multi-asset & BTC↔XMR swap
+- XMR wallet (separate encrypted seed, stagenet/testnet first)
+- Dashboard shows BTC + XMR balances
+- **Swap tab** — user picks BTC→XMR (or reverse), gets quote, confirms (same UX as Send)
+- Prefer atomic swap / Haveno; fallback to disclosed third-party API
+- No automated trading or background conversion
+
+### Phase 11 — Security hardening
+Structured security track in the master plan (tasks 11.1–11.32). Highest priority before mainnet:
+
+1. **Release integrity** — sign `.exe`/`.dmg`/`.apk`, publish cert fingerprints, verify docs (extends `releases.json` manifest)
+2. **Local API isolation** — FastAPI sidecar on `127.0.0.1` only; `STRICT_SECRETS=true` in production builds
+3. **Key lifecycle** — force v2 passphrase encryption before mainnet; auto-lock + clear DEK on background/logout
+4. **Public surface** — leaderboard rate limits, display-name validation, cached GET responses
+5. **Swap safety** — provider allowlist, server-side quote expiry, deposit address checksums
+
+Also covers: production CORS/security headers, CSRF or SameSite policy, session idle timeout, SQLite encryption at rest, Tauri/Capacitor hardening, expanded audit log, `.env.example`, and pre-release security checklist.
+
+See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** §21 for the full task list.
 
 ---
 
@@ -201,7 +223,9 @@ BIP84 wallets (testnet), Esplora sync, receive/send, UTXO and transaction views.
 | Mobile | Capacitor (iOS + Android) |
 | Wallet / API | Python FastAPI + embit (today); BDK Rust optional |
 | Storage | SQLite, encrypted at rest |
-| Chain | Esplora (Blockstream) — free tier |
+| Chain (BTC) | Esplora (Blockstream) — free tier |
+| Chain (XMR) | wallet-rpc sidecar or lightweight indexer (Phase 10) |
+| Swap | User-initiated BTC↔XMR — Haveno/atomic preferred (Phase 10) |
 | Advisor AI | On-device rules + templates — no cloud LLM at launch |
 | Download site | SvelteKit static/marketing site + platform binaries |
 | Leaderboard | FastAPI endpoint + SQLite; opt-in balance sync only |
@@ -222,4 +246,4 @@ BIP84 wallets (testnet), Esplora sync, receive/send, UTXO and transaction views.
 
 Web prototype (Phases 1–2) runs locally via `setup.sh` / `setup.bat`. Next step: **Phase 3 — Download website**, then **Phase 4 — Leaderboard**.
 
-See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** for the full execution plan (task list, loop protocol, API specs). This file is a summary.
+See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** for the full execution plan (task list, loop status, loop log). This file is a summary.

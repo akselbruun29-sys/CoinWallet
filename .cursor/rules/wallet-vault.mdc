@@ -6,7 +6,7 @@ alwaysApply: false
 
 # CoinWallet
 
-Cross-platform Bitcoin wallet — Windows, Mac, iPhone, Android. Testnet first.
+Cross-platform wallet — Windows, Mac, iPhone, Android. **Bitcoin-first**; optional **Monero (XMR)** + user-initiated BTC↔XMR swap in Phase 10. Testnet first.
 
 ## Product Direction
 
@@ -14,7 +14,8 @@ Cross-platform Bitcoin wallet — Windows, Mac, iPhone, Android. Testnet first.
 - Public **download website** with Windows / Mac / iPhone / Android links
 - **Leaderboard** — opt-in only; display name + total balance (no addresses or keys)
 - **Advisor AI tab only** — on-device rule-based guidance (fees, privacy tips, explanations)
-- **No trading AI** — no exchange integration, signals, or automated trades
+- **No trading AI** — no signals, automated market trading, or background swaps
+- **Phase 10:** optional XMR wallets + manual BTC↔XMR swap (quote-and-confirm, privacy exit)
 - Minimize cost: free Esplora APIs, no cloud LLM at launch
 
 ## Architecture

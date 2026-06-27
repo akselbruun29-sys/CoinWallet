@@ -1,0 +1,37 @@
+{
+  "version": "0.0.0",
+  "released_at": "2026-06-27T00:00:00Z",
+  "min_supported_version": "0.0.0",
+  "signer_fingerprint": null,
+  "release_notes": "Placeholder manifest — binaries not yet built.",
+  "platforms": {
+    "windows": {
+      "url": "/releases/coinwallet-windows-x64.exe",
+      "sha256": null,
+      "signature": null,
+      "signer_fingerprint": null,
+      "available": false
+    },
+    "macos": {
+      "url": "/releases/coinwallet-macos.dmg",
+      "sha256": null,
+      "signature": null,
+      "signer_fingerprint": null,
+      "available": false
+    },
+    "android": {
+      "url": "/releases/coinwallet-android.apk",
+      "sha256": null,
+      "signature": null,
+      "signer_fingerprint": null,
+      "available": false
+    },
+    "ios": {
+      "url": "/releases/coinwallet-ios.ipa",
+      "sha256": null,
+      "signature": null,
+      "signer_fingerprint": null,
+      "available": false
+    }
+  }
+}
