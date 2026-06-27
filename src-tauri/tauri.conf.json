@@ -13,12 +13,14 @@
     "windows": [
       {
         "title": "CoinWallet",
+        "url": "http://127.0.0.1:8002",
         "width": 1280,
         "height": 800,
         "minWidth": 960,
         "minHeight": 600,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "visible": false
       }
     ],
     "security": {

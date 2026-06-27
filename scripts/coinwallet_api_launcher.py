@@ -79,6 +79,7 @@ def main() -> None:
     os.environ.setdefault("COINWALLET_PRODUCTION", "true")
     os.environ.setdefault("LOCALHOST_ONLY", "true")
     os.environ["WALLET_DB"] = str(app_data / "wallet.db")
+    os.environ.setdefault("COINWALLET_SERVE_UI", "true")
 
     if os.environ.get("COINWALLET_TOR_MANAGED", "").lower() in ("true", "1", "yes"):
         from src.database import WalletDatabase

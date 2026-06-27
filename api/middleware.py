@@ -26,6 +26,8 @@ _DEFAULT_CORS_ORIGINS = frozenset(
         "http://127.0.0.1:5173",
         "http://localhost:4173",
         "http://127.0.0.1:4173",
+        "http://localhost:8002",
+        "http://127.0.0.1:8002",
     }
 )
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -187,10 +189,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Permissions-Policy",
             "camera=(), microphone=(), geolocation=()",
         )
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'none'; frame-ancestors 'none'",
-        )
+        if request.url.path.startswith("/api/"):
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'",
+            )
         return response
 
 

@@ -1,6 +1,12 @@
 import { remoteGet, remoteServicesEnabled } from './remote-services';
 
-export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8002';
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+export const API_BASE =
+  configuredApiUrl !== undefined && configuredApiUrl !== ''
+    ? configuredApiUrl
+    : import.meta.env.VITE_COINWALLET_DESKTOP === 'true'
+      ? ''
+      : 'http://127.0.0.1:8002';
 
 const TOKEN_KEY = 'wv_auth_token';
 

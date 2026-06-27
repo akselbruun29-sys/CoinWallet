@@ -5,6 +5,11 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).resolve().parent
+ADMIN_UI = ROOT.parent / "admin" / "build"
+
+_ui_datas = []
+if ADMIN_UI.is_dir() and (ADMIN_UI / "index.html").is_file():
+    _ui_datas.append((str(ADMIN_UI), "admin_ui"))
 
 hiddenimports = (
     collect_submodules("api")
@@ -44,7 +49,7 @@ a = Analysis(
     [str(ROOT / "scripts" / "coinwallet_api_launcher.py")],
     pathex=[str(ROOT)],
     binaries=[],
-    datas=[],
+    datas=_ui_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

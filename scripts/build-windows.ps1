@@ -25,12 +25,13 @@ try {
     Write-Warning "Tor staging skipped: $_"
 }
 
+Write-Host "Building admin UI (desktop)..." -ForegroundColor Cyan
+npm run build:desktop --prefix admin
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "Building frozen API sidecar..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "build-api-sidecar.ps1")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-Write-Host "Building admin UI (desktop)..." -ForegroundColor Cyan
-npm run build:desktop --prefix admin
 
 Write-Host "Building Tauri bundle..." -ForegroundColor Cyan
 node (Join-Path $PSScriptRoot "patch-tauri-tor-resources.mjs")

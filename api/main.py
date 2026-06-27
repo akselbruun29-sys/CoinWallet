@@ -78,6 +78,8 @@ _DEFAULT_CORS_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
+    "http://localhost:8002",
+    "http://127.0.0.1:8002",
 ]
 
 
@@ -339,3 +341,18 @@ def settings(user: AuthUser = Depends(get_current_user), db: WalletDatabase = De
         "allow_mainnet": all_settings.get("allow_mainnet", "false"),
         "wallet_unlock_ttl": all_settings.get("wallet_unlock_ttl", "900"),
     }
+
+
+def _serve_desktop_ui() -> bool:
+    return os.getenv("COINWALLET_SERVE_UI", "").lower() in ("1", "true", "yes")
+
+
+if _serve_desktop_ui():
+    from api.desktop_ui import mount_desktop_ui
+
+    if not mount_desktop_ui(app):
+        import logging
+
+        logging.getLogger("uvicorn.error").warning(
+            "COINWALLET_SERVE_UI is set but admin UI build was not found"
+        )

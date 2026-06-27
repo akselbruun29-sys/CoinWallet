@@ -1,6 +1,8 @@
+use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::plugin::{Builder as PluginBuilder, TauriPlugin};
 use tauri::{AppHandle, Manager, RunEvent};
 use url::Url;
@@ -144,6 +146,7 @@ fn apply_sidecar_env(cmd: &mut Command, app_data: &Path, tor_active: bool) {
     } else {
         cmd.env("COINWALLET_PRODUCTION", "true");
         cmd.env("STRICT_SECRETS", "true");
+        cmd.env("COINWALLET_SERVE_UI", "true");
     }
 
     if tor_active {
@@ -262,6 +265,26 @@ fn navigation_guard_plugin<R: tauri::Runtime>() -> TauriPlugin<R> {
         .build()
 }
 
+fn wait_for_api_port(host: &str, port: u16, timeout: Duration) -> bool {
+    let addr: SocketAddr = format!("{host}:{port}")
+        .parse()
+        .unwrap_or_else(|_| panic!("invalid API address {host}:{port}"));
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if TcpStream::connect_timeout(&addr, Duration::from_millis(250)).is_ok() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_data = app_data_dir();
@@ -290,6 +313,16 @@ pub fn run() {
                 if let Ok(mut guard) = state.0.lock() {
                     *guard = child;
                 }
+            }
+
+            if cfg!(debug_assertions) {
+                show_main_window(app.handle());
+            } else {
+                let ready = wait_for_api_port("127.0.0.1", 8002, Duration::from_secs(45));
+                if !ready {
+                    log::warn!("Timed out waiting for wallet API on :8002 — showing window anyway");
+                }
+                show_main_window(app.handle());
             }
 
             Ok(())
