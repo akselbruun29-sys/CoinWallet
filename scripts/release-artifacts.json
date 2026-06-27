@@ -1,0 +1,10 @@
+{
+  "windows": {
+    "filename": "coinwallet-windows-x64-setup.exe",
+    "url": "/releases/coinwallet-windows-x64-setup.exe"
+  },
+  "macos": {
+    "filename": "coinwallet-macos.dmg",
+    "url": "/releases/coinwallet-macos.dmg"
+  }
+}

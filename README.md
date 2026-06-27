@@ -165,10 +165,17 @@ python scripts/verify_release_security.py
 | `APPLE_SIGNING_IDENTITY`, `APPLE_NOTARY_*` | macOS codesign + notarization |
 | `RELEASE_SIGNER_FINGERPRINT` / `_WINDOWS` / `_MACOS` | Manifest publisher thumbprints |
 
-**Publish:** commit `releases/releases.json`, then deploy:
+**Publish (Cloudflare — free, no API token required for first setup):**
 
 ```powershell
-$env:CLOUDFLARE_API_TOKEN = '<token>'
+cd C:\Users\aksel\Documents\GitHub\trading-bot
+.\scripts\setup-cloudflare.ps1
+```
+
+Or, after `npx wrangler login` in `site/`:
+
+```powershell
+$env:CLOUDFLARE_API_TOKEN = '<token>'   # optional if already logged in via wrangler
 .\scripts\deploy-site.ps1
 ```
 

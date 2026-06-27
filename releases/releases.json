@@ -1,26 +1,26 @@
 {
-  "version": "0.1.0",
-  "released_at": "2026-06-27T14:26:53Z",
-  "min_supported_version": "0.0.0",
-  "signer_fingerprint": null,
-  "signing_keys_url": "/releases/signing-keys.example.json",
-  "release_notes": "First Windows desktop build (unsigned).",
-  "platforms": {
-    "windows": {
-      "url": "/releases/coinwallet-windows-x64.exe",
-      "sha256": "12599bd2fc252ccdd8c8500845eeeed3151ec818b55e0cc60b44724034f4cf73",
-      "signature": null,
-      "signature_status": "unsigned",
-      "signer_fingerprint": null,
-      "available": true
-    },
-    "macos": {
-      "url": "/releases/coinwallet-macos.dmg",
-      "sha256": null,
-      "signature": null,
-      "signature_status": "unsigned",
-      "signer_fingerprint": null,
-      "available": false
-    }
-  }
+    "version":  "0.1.0",
+    "released_at":  "2026-06-27T14:41:40Z",
+    "min_supported_version":  "0.1.0",
+    "signer_fingerprint":  null,
+    "signing_keys_url":  "/releases/signing-keys.example.json",
+    "release_notes":  "Windows NSIS installer. Run setup wizard to install CoinWallet.",
+    "platforms":  {
+                      "windows":  {
+                                      "url":  "/releases/coinwallet-windows-x64-setup.exe",
+                                      "sha256":  "bdc2efa777bc70f7698ccb0c1e77174d40973b406ca037b4aac5eaa3199e58ba",
+                                      "signature":  null,
+                                      "signature_status":  "unsigned",
+                                      "signer_fingerprint":  null,
+                                      "available":  true
+                                  },
+                      "macos":  {
+                                    "url":  "/releases/coinwallet-macos.dmg",
+                                    "sha256":  null,
+                                    "signature":  null,
+                                    "signature_status":  "unsigned",
+                                    "signer_fingerprint":  null,
+                                    "available":  false
+                                }
+                  }
 }

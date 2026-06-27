@@ -24,6 +24,22 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "sync-site-releases.mjs failed."
 }
 
+# Remove stale installers not listed in the manifest (e.g. after rename).
+$manifestPath = Join-Path $Root "releases\releases.json"
+$manifestJson = Get-Content $manifestPath -Raw | ConvertFrom-Json
+$allowed = @("releases.json", "signing-keys.example.json")
+foreach ($key in @("windows", "macos")) {
+    $url = $manifestJson.platforms.$key.url
+    if ($url) { $allowed += ($url -split '/')[-1] }
+}
+$staticReleases = Join-Path $Root "site\static\releases"
+Get-ChildItem $staticReleases -File -ErrorAction SilentlyContinue | ForEach-Object {
+    if ($allowed -notcontains $_.Name) {
+        Remove-Item $_.FullName -Force
+        Write-Host "Removed stale release file: $($_.Name)" -ForegroundColor DarkGray
+    }
+}
+
 $manifest = Get-Content (Join-Path $Root "releases\releases.json") -Raw | ConvertFrom-Json
 if (-not $Version) {
     $Version = $manifest.version

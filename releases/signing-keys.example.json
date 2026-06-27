@@ -7,7 +7,7 @@
       "type": "authenticode",
       "fingerprint": "REPLACE_WITH_CERT_SHA1_THUMBPRINT",
       "subject": "CN=CoinWallet",
-      "verify_command": "Get-AuthenticodeSignature .\\coinwallet-windows-x64.exe"
+      "verify_command": "Get-AuthenticodeSignature .\\coinwallet-windows-x64-setup.exe"
     },
     {
       "platform": "macos",

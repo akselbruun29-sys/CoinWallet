@@ -61,8 +61,9 @@ function Set-PlatformArtifact($platformKey, $filePath, $urlPath) {
 }
 
 $releasesDir = Join-Path $Root "releases"
-Set-PlatformArtifact "windows" (Join-Path $releasesDir "coinwallet-windows-x64.exe") "/releases/coinwallet-windows-x64.exe"
-Set-PlatformArtifact "macos" (Join-Path $releasesDir "coinwallet-macos.dmg") "/releases/coinwallet-macos.dmg"
+$artifacts = Get-Content (Join-Path $PSScriptRoot "release-artifacts.json") -Raw | ConvertFrom-Json
+Set-PlatformArtifact "windows" (Join-Path $releasesDir $artifacts.windows.filename) $artifacts.windows.url
+Set-PlatformArtifact "macos" (Join-Path $releasesDir $artifacts.macos.filename) $artifacts.macos.url
 
 $json = $manifest | ConvertTo-Json -Depth 8
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false

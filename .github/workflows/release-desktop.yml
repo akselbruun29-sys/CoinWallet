@@ -55,19 +55,19 @@ jobs:
       - name: Build Tauri (Windows)
         run: cargo tauri build
 
-      - name: Stage Windows artifact
+      - name: Stage Windows installer
         shell: pwsh
         run: |
-          $exe = Join-Path $PWD "src-tauri/target/release/coinwallet.exe"
-          if (-not (Test-Path $exe)) { throw "Missing $exe" }
+          $setup = Get-ChildItem (Join-Path $PWD "src-tauri/target/release/bundle/nsis") -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "NSIS installer not found" }
           New-Item -ItemType Directory -Force -Path releases | Out-Null
-          Copy-Item $exe releases/coinwallet-windows-x64.exe -Force
+          Copy-Item $setup.FullName releases/coinwallet-windows-x64-setup.exe -Force
 
-      - name: Upload Windows artifact
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: coinwallet-windows-x64
-          path: releases/coinwallet-windows-x64.exe
+          name: coinwallet-windows-setup
+          path: releases/coinwallet-windows-x64-setup.exe
           retention-days: 14
 
   build-macos:
@@ -140,7 +140,7 @@ jobs:
       - name: Copy artifacts into releases/
         run: |
           mkdir -p releases
-          cp artifact-downloads/coinwallet-windows-x64/coinwallet-windows-x64.exe releases/ || true
+          cp artifact-downloads/coinwallet-windows-setup/coinwallet-windows-x64-setup.exe releases/ || true
           cp artifact-downloads/coinwallet-macos-dmg/coinwallet-macos.dmg releases/ || true
           ls -la releases/
 

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "build:desktop": "vite build",
+    "build:desktop": "node ../scripts/build-admin-desktop.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

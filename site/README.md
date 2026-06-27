@@ -82,7 +82,18 @@ In Cloudflare Pages → **coinwallet** → **Custom domains**, add e.g. `coinwal
 
 ## Release manifest
 
-Platform downloads are driven by `releases/releases.json` (Windows and macOS only). After desktop builds, run `scripts/finalize-release.ps1` (or `finalize-release.sh`) to verify checksums and sync manifest.bootstrap` artifacts into `site/static/releases/`, then redeploy the site.
+Platform downloads are driven by `releases/releases.json` (Windows and macOS only). After desktop builds, run `scripts/finalize-release.ps1` (or `finalize-release.sh`) to verify checksums and sync artifacts into `site/static/releases/`, then redeploy the site.
+
+### Quick setup (no API token)
+
+From the **repo root** in PowerShell:
+
+```powershell
+cd C:\Users\aksel\Documents\GitHub\trading-bot
+.\scripts\setup-cloudflare.ps1
+```
+
+This walks you through a free Cloudflare account, `wrangler login` (browser), and the first deploy to project **`coinwallet`**.
 
 ## Pages
 

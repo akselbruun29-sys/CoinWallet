@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Copy releases manifest and desktop artifacts into site/static for deploy. */
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,8 +20,14 @@ if (existsSync(signingKeys)) {
   copyFileSync(signingKeys, join(staticReleases, 'signing-keys.example.json'));
 }
 
-const artifacts = ['coinwallet-windows-x64.exe', 'coinwallet-macos.dmg'];
-for (const name of artifacts) {
+const manifest = JSON.parse(readFileSync(manifestSrc, 'utf8'));
+const names = new Set(
+  Object.values(manifest.platforms ?? {})
+    .map((p) => (p.url ?? '').split('/').pop())
+    .filter(Boolean)
+);
+
+for (const name of names) {
   const src = join(releasesDir, name);
   if (!existsSync(src)) {
     continue;

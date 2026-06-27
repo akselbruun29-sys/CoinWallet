@@ -14,11 +14,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "releases" / "releases.json"
 SITE_MANIFEST = ROOT / "site" / "static" / "releases" / "releases.json"
+ARTIFACTS_META = ROOT / "scripts" / "release-artifacts.json"
 
-ARTIFACTS = {
-    "windows": ("coinwallet-windows-x64.exe", "/releases/coinwallet-windows-x64.exe"),
-    "macos": ("coinwallet-macos.dmg", "/releases/coinwallet-macos.dmg"),
-}
+ARTIFACTS = json.loads(ARTIFACTS_META.read_text(encoding="utf-8"))
 
 
 def sha256(path: Path) -> str:
@@ -65,7 +63,9 @@ def main() -> None:
     if global_fp:
         data["signer_fingerprint"] = global_fp
 
-    for key, (filename, url) in ARTIFACTS.items():
+    for key, meta in ARTIFACTS.items():
+        filename = meta["filename"]
+        url = meta["url"]
         path = ROOT / "releases" / filename
         if not path.exists():
             print(f"Skip {key} — not found: {path}")

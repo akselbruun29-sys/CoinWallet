@@ -24,15 +24,16 @@ npm run build:desktop --prefix admin
 Write-Host "Building Tauri bundle..." -ForegroundColor Cyan
 cargo tauri build
 
-$exe = Join-Path $PWD "src-tauri\target\release\coinwallet.exe"
-if (-not (Test-Path $exe)) {
-    Write-Error "Expected binary not found: $exe"
+$nsisDir = Join-Path $PWD "src-tauri\target\release\bundle\nsis"
+$setup = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $setup) {
+    Write-Error "NSIS installer not found under $nsisDir — expected *-setup.exe from cargo tauri build"
 }
 
-$dest = Join-Path $PWD "releases\coinwallet-windows-x64.exe"
+$dest = Join-Path $PWD "releases\coinwallet-windows-x64-setup.exe"
 New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
-Copy-Item $exe $dest -Force
-Write-Host "Copied to $dest" -ForegroundColor Green
+Copy-Item $setup.FullName $dest -Force
+Write-Host "Copied installer to $dest" -ForegroundColor Green
 
 & (Join-Path $PSScriptRoot "sign-release-windows.ps1") -FilePath $dest
 
@@ -41,4 +42,4 @@ $version = (Get-Content "src-tauri\tauri.conf.json" -Raw | ConvertFrom-Json).ver
 
 & (Join-Path $PSScriptRoot "finalize-release.ps1") -Version $version
 
-Write-Host "Done. Run the installer from src-tauri\target\release\bundle\ if needed." -ForegroundColor Green
+Write-Host "Done. Installed app is listed in Start Menu as CoinWallet." -ForegroundColor Green

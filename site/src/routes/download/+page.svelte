@@ -32,7 +32,7 @@
     {
       id: 'windows',
       name: 'Windows',
-      note: 'Run the installer or portable executable. Requires Windows 10 or later, 64-bit.',
+      note: 'Run the Windows installer (setup wizard), not a raw portable binary. Requires Windows 10 or later, 64-bit.',
     },
     {
       id: 'mac',

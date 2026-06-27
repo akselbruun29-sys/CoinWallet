@@ -237,6 +237,24 @@ def migrate_legacy_wallets(
     return {**_security_payload(user.id, db), "migrated_wallets": migrated}
 
 
+def require_wallet_unlocked(
+    user: AuthUser = Depends(get_current_user),
+    db: WalletDatabase = Depends(get_db),
+) -> AuthUser:
+    security = db.get_wallet_security(user.id) or {}
+    if not security.get("wallet_key_verifier"):
+        raise HTTPException(
+            status_code=403,
+            detail="Set your wallet passphrase in Security before using wallet keys",
+        )
+    if get_unlocked_dek(user.id) is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Wallet locked — unlock with your wallet passphrase",
+        )
+    return user
+
+
 @router.post("/wallet/mainnet/acknowledge")
 def acknowledge_mainnet_risks(
     body: MainnetAckRequest,
@@ -258,21 +276,3 @@ def acknowledge_mainnet_risks(
         ip=request.client.host if request.client else "",
     )
     return _security_payload(user.id, db)
-
-
-def require_wallet_unlocked(
-    user: AuthUser = Depends(get_current_user),
-    db: WalletDatabase = Depends(get_db),
-) -> AuthUser:
-    security = db.get_wallet_security(user.id) or {}
-    if not security.get("wallet_key_verifier"):
-        raise HTTPException(
-            status_code=403,
-            detail="Set your wallet passphrase in Security before using wallet keys",
-        )
-    if get_unlocked_dek(user.id) is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Wallet locked — unlock with your wallet passphrase",
-        )
-    return user

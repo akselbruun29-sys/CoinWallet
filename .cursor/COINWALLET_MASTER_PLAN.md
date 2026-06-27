@@ -197,7 +197,7 @@ Key paths:
 | 3.11 | README section — how to build and deploy site | `site/README.md` | ✓ |
 
 **Download page buttons (until real builds exist):**
-- Windows → `releases/coinwallet-windows-x64.exe` (placeholder until built)
+- Windows → `releases/coinwallet-windows-x64-setup.exe` (NSIS installer from `cargo tauri build`)
 - Mac → `releases/coinwallet-macos.dmg` (+ Gatekeeper / “Open anyway” note)
 
 Each file lists version, SHA-256, code signature metadata, and short install steps — no store badges or store URLs.

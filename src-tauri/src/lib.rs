@@ -8,18 +8,30 @@ use url::Url;
 struct ApiSidecar(Mutex<Option<Child>>);
 
 fn project_root() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        let mut dir = exe.parent().map(PathBuf::from);
+        for _ in 0..8 {
+            let Some(current) = dir else {
+                break;
+            };
+            let venv_marker = if cfg!(windows) {
+                current.join("venv").join("Scripts").join("python.exe")
+            } else {
+                current.join("venv").join("bin").join("python")
+            };
+            if venv_marker.exists() && current.join("api").join("main.py").exists() {
+                return current;
+            }
+            dir = current.parent().map(PathBuf::from);
+        }
+    }
+
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
 
 fn python_executable(root: &PathBuf) -> PathBuf {
     if cfg!(windows) {
-        let scripts = root.join("venv").join("Scripts");
-        let pythonw = scripts.join("pythonw.exe");
-        if pythonw.exists() {
-            pythonw
-        } else {
-            scripts.join("python.exe")
-        }
+        root.join("venv").join("Scripts").join("python.exe")
     } else {
         root.join("venv").join("bin").join("python")
     }
@@ -50,7 +62,6 @@ fn start_api_sidecar(root: &PathBuf) -> Option<Child> {
 
     let mut cmd = Command::new(&python);
     cmd.current_dir(root)
-        .env("STRICT_SECRETS", "true")
         .env(
             "COINWALLET_PRODUCTION",
             if cfg!(debug_assertions) {

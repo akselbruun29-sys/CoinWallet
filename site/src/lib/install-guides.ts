@@ -15,7 +15,7 @@ export const installGuides: InstallGuide[] = [
   {
     id: 'windows',
     title: 'Windows',
-    artifact: 'coinwallet-windows-x64.exe',
+    artifact: 'coinwallet-windows-x64-setup.exe',
     requirements: [
       'Windows 10 or later (64-bit)',
       'About 200 MB free disk space',
@@ -23,8 +23,8 @@ export const installGuides: InstallGuide[] = [
     ],
     steps: [
       {
-        title: 'Download the build',
-        body: 'Get coinwallet-windows-x64.exe from the Download page. Compare the file size with the published release notes if a new version shipped.'
+        title: 'Download the installer',
+        body: 'Get coinwallet-windows-x64-setup.exe from the Download page. This is the NSIS setup wizard — not a portable app binary.'
       },
       {
         title: 'Verify SHA-256',
@@ -36,7 +36,7 @@ export const installGuides: InstallGuide[] = [
       },
       {
         title: 'Run the installer',
-        body: 'Double-click the .exe. If Windows SmartScreen shows a warning for an unsigned build, choose “More info” → “Run anyway”. CoinWallet is distributed outside the Microsoft Store.'
+        body: 'Double-click the setup .exe and follow the wizard. CoinWallet is added to the Start Menu and an optional desktop shortcut. If Windows SmartScreen shows a warning for an unsigned build, choose “More info” → “Run anyway”.'
       },
       {
         title: 'First launch',
@@ -44,18 +44,18 @@ export const installGuides: InstallGuide[] = [
       },
       {
         title: 'Updates',
-        body: 'Download the new .exe from this site, verify the checksum, and replace the previous install. Export your recovery phrase offline before major upgrades.'
+        body: 'Download the new setup .exe from this site, verify the checksum, run the installer, and choose to upgrade the existing install. Export your recovery phrase offline before major upgrades.'
       }
     ],
     verifyChecksum: {
       label: 'PowerShell',
       command:
-        'Get-FileHash .\\coinwallet-windows-x64.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash'
+        'Get-FileHash .\\coinwallet-windows-x64-setup.exe -Algorithm SHA256 | Select-Object -ExpandProperty Hash'
     },
     verifySignature: {
       label: 'PowerShell (signed builds)',
       command:
-        '(Get-AuthenticodeSignature .\\coinwallet-windows-x64.exe).SignerCertificate.Thumbprint',
+        '(Get-AuthenticodeSignature .\\coinwallet-windows-x64-setup.exe).SignerCertificate.Thumbprint',
       note: 'Compare the thumbprint to the signer fingerprint on the Download page. Status should be Valid.'
     },
     troubleshooting: [

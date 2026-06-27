@@ -7,17 +7,33 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path $PSScriptRoot -Parent
 Set-Location $Root
 
-if (-not $env:CLOUDFLARE_API_TOKEN) {
+function Test-WranglerAuth {
+    Push-Location (Join-Path $Root "site")
+    try {
+        $out = npx wrangler whoami 2>&1 | Out-String
+        return ($LASTEXITCODE -eq 0 -and $out -notmatch "not authenticated")
+    } finally {
+        Pop-Location
+    }
+}
+
+if (-not $env:CLOUDFLARE_API_TOKEN -and -not (Test-WranglerAuth)) {
     Write-Error @"
-CLOUDFLARE_API_TOKEN is not set.
+Not authenticated for Cloudflare deploy.
 
-Create a token at https://developers.cloudflare.com/fundamentals/api/get-started/create-token/
-with Cloudflare Pages edit permission, then:
+Option A (easiest): run the one-time setup script (opens browser login):
+  .\scripts\setup-cloudflare.ps1
 
+Option B: log in manually:
+  cd site
+  npx wrangler login
+
+Option C: use an API token instead:
   `$env:CLOUDFLARE_API_TOKEN = '<token>'
-  `$env:CLOUDFLARE_ACCOUNT_ID = '<account-id>'   # optional for wrangler pages deploy
+  `$env:CLOUDFLARE_ACCOUNT_ID = '<account-id>'
 
-Re-run: .\scripts\deploy-site.ps1
+Create tokens: https://dash.cloudflare.com/profile/api-tokens
+  -> Create Token -> Edit Cloudflare Workers (includes Pages Edit)
 "@
 }
 
@@ -39,7 +55,7 @@ if (-not $SkipVerify) {
     foreach ($key in @("windows", "macos")) {
         $p = $manifest.platforms.$key
         if ($p.available -and $p.sha256) {
-            $fileName = if ($key -eq "windows") { "coinwallet-windows-x64.exe" } else { "coinwallet-macos.dmg" }
+            $fileName = ($p.url -split '/')[-1]
             $path = Join-Path $Root "site\static\releases\$fileName"
             if (-not (Test-Path $path)) {
                 Write-Error "Platform $key is available but $path is missing. Run finalize-release.ps1 after building."
@@ -49,6 +65,7 @@ if (-not $SkipVerify) {
 }
 
 Write-Host "Building and deploying site..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "ensure-cloudflare-pages-project.ps1")
 Push-Location (Join-Path $Root "site")
 try {
     if (-not (Test-Path "node_modules")) {
