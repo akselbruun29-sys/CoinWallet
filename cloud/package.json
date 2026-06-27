@@ -1,0 +1,14 @@
+{
+  "name": "coinwallet-cloud-api",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute coinwallet-leaderboard --remote --file=./schema.sql",
+    "db:migrate:local": "wrangler d1 execute coinwallet-leaderboard --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0",
+    "typescript": "^5.0.0"
+  }
+}

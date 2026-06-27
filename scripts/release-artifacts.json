@@ -1,10 +1,14 @@
 {
+  "github_repo": "akselbruun29-sys/CoinWallet",
+  "cf_pages_max_mib": 25,
   "windows": {
     "filename": "coinwallet-windows-x64-setup.exe",
-    "url": "/releases/coinwallet-windows-x64-setup.exe"
+    "url": "/releases/coinwallet-windows-x64-setup.exe",
+    "host_on_github_releases": true
   },
   "macos": {
     "filename": "coinwallet-macos.dmg",
-    "url": "/releases/coinwallet-macos.dmg"
+    "url": "/releases/coinwallet-macos.dmg",
+    "host_on_github_releases": false
   }
 }

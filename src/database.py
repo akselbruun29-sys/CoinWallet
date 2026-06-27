@@ -130,9 +130,23 @@ class WalletDatabase:
                     balance_sats INTEGER NOT NULL DEFAULT 0,
                     network TEXT NOT NULL,
                     opted_in INTEGER NOT NULL DEFAULT 0,
+                    remote_token TEXT,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(user_id, network),
                     FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS global_leaderboard_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token_hash TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    balance_sats INTEGER NOT NULL DEFAULT 0,
+                    network TEXT NOT NULL,
+                    opted_in INTEGER NOT NULL DEFAULT 1,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(token_hash, network)
                 )
             """)
 
@@ -252,6 +266,25 @@ class WalletDatabase:
         ):
             if col not in swap_cols:
                 conn.execute(f"ALTER TABLE swaps ADD COLUMN {col} {ddl}")
+
+        leaderboard_cols = {
+            r[1] for r in conn.execute("PRAGMA table_info(leaderboard_entries)").fetchall()
+        }
+        if "remote_token" not in leaderboard_cols:
+            conn.execute("ALTER TABLE leaderboard_entries ADD COLUMN remote_token TEXT")
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS global_leaderboard_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                balance_sats INTEGER NOT NULL DEFAULT 0,
+                network TEXT NOT NULL,
+                opted_in INTEGER NOT NULL DEFAULT 1,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(token_hash, network)
+            )
+        """)
 
         conn.commit()
 
@@ -1068,7 +1101,7 @@ class WalletDatabase:
         with self.get_connection() as conn:
             row = conn.execute(
                 """
-                SELECT user_id, display_name, balance_sats, network, opted_in, updated_at
+                SELECT user_id, display_name, balance_sats, network, opted_in, remote_token, updated_at
                 FROM leaderboard_entries
                 WHERE user_id = ? AND network = ?
                 """,
@@ -1082,6 +1115,7 @@ class WalletDatabase:
                 "balance_sats": row["balance_sats"],
                 "network": row["network"],
                 "opted_in": bool(row["opted_in"]),
+                "remote_token": row["remote_token"],
                 "updated_at": row["updated_at"],
             }
 
@@ -1092,6 +1126,7 @@ class WalletDatabase:
         display_name: str,
         opted_in: bool,
         balance_sats: int = 0,
+        remote_token: str | None = None,
     ) -> None:
         with self.get_connection() as conn:
             if not opted_in:
@@ -1105,13 +1140,14 @@ class WalletDatabase:
             conn.execute(
                 """
                 INSERT INTO leaderboard_entries (
-                    user_id, display_name, balance_sats, network, opted_in, updated_at
+                    user_id, display_name, balance_sats, network, opted_in, remote_token, updated_at
                 )
-                VALUES (?, ?, ?, ?, 1, ?)
+                VALUES (?, ?, ?, ?, 1, ?, ?)
                 ON CONFLICT(user_id, network) DO UPDATE SET
                     display_name = excluded.display_name,
                     balance_sats = excluded.balance_sats,
                     opted_in = 1,
+                    remote_token = COALESCE(excluded.remote_token, leaderboard_entries.remote_token),
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -1119,6 +1155,7 @@ class WalletDatabase:
                     display_name,
                     balance_sats,
                     network,
+                    remote_token,
                     datetime.utcnow().isoformat(),
                 ),
             )
@@ -1175,6 +1212,130 @@ class WalletDatabase:
             rank = conn.execute(
                 """
                 SELECT COUNT(*) + 1 FROM leaderboard_entries
+                WHERE network = ? AND opted_in = 1 AND balance_sats > ?
+                """,
+                (network, row["balance_sats"]),
+            ).fetchone()[0]
+            return int(rank)
+
+    def upsert_global_leaderboard(
+        self,
+        token_hash: str,
+        display_name: str,
+        network: str,
+        balance_sats: int,
+        *,
+        opted_in: bool = True,
+    ) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO global_leaderboard_entries (
+                    token_hash, display_name, balance_sats, network, opted_in, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(token_hash, network) DO UPDATE SET
+                    display_name = excluded.display_name,
+                    balance_sats = excluded.balance_sats,
+                    opted_in = excluded.opted_in,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    token_hash,
+                    display_name,
+                    balance_sats,
+                    network,
+                    1 if opted_in else 0,
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def update_global_leaderboard_balance(
+        self, token_hash: str, network: str, balance_sats: int
+    ) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE global_leaderboard_entries
+                SET balance_sats = ?, updated_at = ?
+                WHERE token_hash = ? AND network = ? AND opted_in = 1
+                """,
+                (balance_sats, datetime.utcnow().isoformat(), token_hash, network),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def delete_global_leaderboard(self, token_hash: str, network: str) -> None:
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                DELETE FROM global_leaderboard_entries
+                WHERE token_hash = ? AND network = ?
+                """,
+                (token_hash, network),
+            )
+            conn.commit()
+
+    def get_global_leaderboard_entry(
+        self, token_hash: str, network: str
+    ) -> Optional[dict]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT token_hash, display_name, balance_sats, network, opted_in, updated_at
+                FROM global_leaderboard_entries
+                WHERE token_hash = ? AND network = ?
+                """,
+                (token_hash, network),
+            ).fetchone()
+            if not row:
+                return None
+            return {
+                "token_hash": row["token_hash"],
+                "display_name": row["display_name"],
+                "balance_sats": row["balance_sats"],
+                "network": row["network"],
+                "opted_in": bool(row["opted_in"]),
+                "updated_at": row["updated_at"],
+            }
+
+    def list_global_leaderboard(self, network: str, limit: int = 100) -> list[dict]:
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT display_name, balance_sats, updated_at
+                FROM global_leaderboard_entries
+                WHERE network = ? AND opted_in = 1
+                ORDER BY balance_sats DESC, updated_at ASC
+                LIMIT ?
+                """,
+                (network, limit),
+            ).fetchall()
+            return [
+                {
+                    "rank": idx + 1,
+                    "display_name": row["display_name"],
+                    "balance_sats": row["balance_sats"],
+                    "updated_at": row["updated_at"],
+                }
+                for idx, row in enumerate(rows)
+            ]
+
+    def get_global_leaderboard_rank(self, token_hash: str, network: str) -> Optional[int]:
+        with self.get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT balance_sats FROM global_leaderboard_entries
+                WHERE token_hash = ? AND network = ? AND opted_in = 1
+                """,
+                (token_hash, network),
+            ).fetchone()
+            if not row:
+                return None
+            rank = conn.execute(
+                """
+                SELECT COUNT(*) + 1 FROM global_leaderboard_entries
                 WHERE network = ? AND opted_in = 1 AND balance_sats > ?
                 """,
                 (network, row["balance_sats"]),

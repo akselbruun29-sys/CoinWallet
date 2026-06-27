@@ -48,9 +48,19 @@ jobs:
 
       - name: Build admin UI (desktop)
         working-directory: admin
+        env:
+          VITE_REMOTE_SERVICES_URL: ${{ vars.VITE_REMOTE_SERVICES_URL }}
         run: |
           npm ci
           npm run build:desktop
+
+      - name: Build frozen API sidecar
+        shell: pwsh
+        run: |
+          python -m pip install pyinstaller
+          python -m PyInstaller scripts/coinwallet-api.spec --noconfirm --clean
+          New-Item -ItemType Directory -Force -Path src-tauri/bin | Out-Null
+          Copy-Item dist/coinwallet-api.exe src-tauri/bin/coinwallet-api-x86_64-pc-windows-msvc.exe -Force
 
       - name: Build Tauri (Windows)
         run: cargo tauri build
@@ -121,6 +131,8 @@ jobs:
   publish-manifest:
     needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -157,6 +169,21 @@ jobs:
           fi
           python scripts/update_releases_manifest.py "${args[@]}"
 
+      - name: Publish GitHub Release
+        if: inputs.mark_available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "v${{ inputs.version }}" 2>/dev/null || \
+            gh release create "v${{ inputs.version }}" \
+              --title "CoinWallet v${{ inputs.version }}" \
+              --notes "${{ inputs.release_notes || 'Desktop release' }}"
+          test -f releases/coinwallet-windows-x64-setup.exe && \
+            gh release upload "v${{ inputs.version }}" releases/coinwallet-windows-x64-setup.exe --clobber
+          test -f releases/coinwallet-macos.dmg && \
+            gh release upload "v${{ inputs.version }}" releases/coinwallet-macos.dmg --clobber
+          python scripts/update_releases_manifest.py --version "${{ inputs.version }}" --mark-available
+
       - name: Verify manifest hashes
         run: python scripts/verify-release-manifest.py
 
@@ -167,6 +194,7 @@ jobs:
         working-directory: site
         env:
           VITE_PUBLIC_API_URL: ${{ vars.VITE_PUBLIC_API_URL }}
+          VITE_REMOTE_SERVICES_URL: ${{ vars.VITE_REMOTE_SERVICES_URL }}
         run: |
           npm ci
           npm run build

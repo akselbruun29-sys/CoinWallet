@@ -24,3 +24,5 @@ releases/*.exe
 releases/*.dmg
 site/static/releases/*.exe
 site/static/releases/*.dmg
+src-tauri/bin/*.exe
+src-tauri/bin/coinwallet-api*

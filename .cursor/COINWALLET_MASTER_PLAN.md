@@ -6,11 +6,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | 12 — Release readiness |
-| **Next task** | **12.5** — Run `deploy-site.ps1` with Cloudflare token (or CI Release desktop) |
-| **Last completed** | 12.7 deploy-site scripts + release workflow deploy job |
-| **Loop mode** | Chain (back-to-back tasks) |
-| **Last loop tick** | 2026-06-27 |
+| **Current phase** | 13 — Local-first (Wasabi-style) ✓ |
+| **Next task** | **14.2** — iPad desktop-mode UA handling |
+| **Last completed** | 14.1 detectOS false-positive fix |
+| **Loop mode** | Chain (5-minute ticks) |
+| **Last loop tick** | 2026-06-27T16:01 |
 
 ### Loop log
 
@@ -48,6 +48,10 @@
 | 2026-06-27 | 12.6 | finalize-release, sync-site-releases artifacts, operator checklist, release-desktop.yml |
 | 2026-06-27 | 12.5 (partial) | Tauri nav plugin fix; Windows 0.1.0 built (unsigned), manifest + site static synced |
 | 2026-06-27 | 12.7 | deploy-site.ps1/.sh; release-desktop deploy-site job; site build verified with .exe |
+| 2026-06-27 | Loop | 5-minute master plan loop armed; next: **12.5** rebuild installer |
+| 2026-06-27 | 12.5 ✓ | Bundled sidecar NSIS 0.1.0 built; site redeployed; installer hosted locally only (33.8 MiB > CF limit) |
+| 2026-06-27 | 12.8 ✓ | GitHub Releases URL in manifest; publish script + CI; site redeployed |
+| 2026-06-27 | 14.1 ✓ | detectOS: windows nt / mac os / mobile-first; no darwin false positive |
 
 ---
 
@@ -76,7 +80,7 @@
 
 ### Loop interval
 
-Background timer fires every **15 minutes** (`900s`) with sentinel `AGENT_LOOP_TICK_COINWALLET`.
+Background timer fires every **5 minutes** (`300s`) with sentinel `AGENT_LOOP_TICK_COINWALLET`.
 
 ---
 
@@ -104,32 +108,45 @@ Background timer fires every **15 minutes** (`900s`) with sentinel `AGENT_LOOP_T
 
 **In-app tabs:** Dashboard · Wallets · Receive · Send · **Swap** · Coin Control · Transactions · Privacy · Advisor AI · Leaderboard · Settings
 
-**Out of scope forever:** trading AI, buy/sell signals, automated market trading, portfolio rebalancing bots, cloud LLM for wallet data.
+**Out of scope forever:** trading AI, buy/sell signals, automated market trading, portfolio rebalancing bots.
 
-**In scope (Phase 10):** hold XMR alongside BTC; **user-initiated** BTC→XMR (and XMR→BTC) swap — same UX pattern as Send (preview fees/rate, unlock required, no background trading).
+**Optional cloud (Phase 13):** public leaderboard + cloud AI hints — display name and balance band only; keys and seeds never leave the device. Rule-based advisor works fully offline.
 
 ---
 
 ## 3. Architecture
 
 ```
-site/                    ← Download website (SvelteKit static)
+site/                    ← Download website (SvelteKit static) — leaderboard reads remote URL
 admin/                   ← Wallet app UI (SvelteKit 5 + shadcn-svelte) — shared on all platforms
-api/                     ← FastAPI (auth, wallet, swap, leaderboard, admin)
+api/                     ← FastAPI local sidecar (auth, wallet, swap) — 127.0.0.1 only
+api/cloud_app.py         ← Optional cloud deploy — leaderboard + future AI only
 src/wallet/              ← BIP84 BTC engine + Monero engine (Phase 10)
 src/wallet/xmr/          ← XMR keys, sync, send (Phase 10)
-src/database.py          ← SQLite schema
+src/database.py          ← SQLite schema (local wallet.db + global_leaderboard_entries on cloud)
 releases/                ← Build artifacts + releases.json manifest (gitignored binaries)
 .cursor/
   COINWALLET_MASTER_PLAN.md   ← THIS FILE (plan + loop state + log)
 ```
 
+**Wasabi-style local-first (Phase 13):**
+
+| Layer | Runs where | Needs internet |
+|-------|------------|----------------|
+| Keys, signing, wallet.db | This device | No |
+| FastAPI sidecar | `127.0.0.1` | No |
+| Rule-based Advisor | In-app | No |
+| Blockchain sync (Esplora / XMR RPC) | Outbound to chain APIs | Yes (like any Bitcoin wallet) |
+| Swap quotes | Outbound to allowlisted providers | Yes (user-initiated only) |
+| Public leaderboard | `api/cloud_app.py` | Yes (opt-in display name + balance) |
+| Cloud AI hints (optional) | Future `VITE_ADVISOR_AI_URL` | Yes (non-sensitive summary only) |
+
 **Multi-asset model (Phase 10):** `wallets.asset_type` = `btc` | `xmr`. Each asset has its own encrypted seed, sync backend, and receive/send flows. Dashboard aggregates balances by asset.
 
 **Data flow — leaderboard (opt-in only):**
-App syncs wallet → if opt-in → `POST /api/leaderboard/update` with `{ display_name, balance_sats, network }` → SQLite → `GET /api/leaderboard?network=testnet` → app tab + site page.
+App syncs wallet locally → if opt-in → local sidecar pushes `{ display_name, balance_sats, network }` to cloud via device token → `GET /api/leaderboard` on cloud → app tab + site page. No wallet keys on cloud.
 
-**Advisor AI:** on-device rule engine in `admin/src/lib/advisor/` — templates + wallet state; no network calls.
+**Advisor AI:** on-device rule engine in `admin/src/lib/advisor/` — works offline. Optional `VITE_ADVISOR_AI_URL` adds cloud hints from a non-sensitive summary only.
 
 ---
 
@@ -558,8 +575,97 @@ User says stop loop?
 | 12.2 ✓ | README production release section + corrected ports/phase status | `README.md` |
 | 12.3 ✓ | Production desktop env template | `.env.production.desktop.example` |
 | 12.4 ✓ | Install guides mention production hardening (STRICT_SECRETS, WALLET_DB_KEY) | `install-guides.ts` |
-| 12.5 | First release — build, deploy site with binaries, optional signing | operator |
+| 12.5 ✓ | First release — build, deploy site with binaries, optional signing | operator |
 | 12.6 ✓ | Finalize/sync scripts, operator checklist, GitHub Release desktop workflow | `finalize-release.*`, `sync-site-releases.mjs`, `release-desktop.yml` |
 | 12.7 ✓ | Deploy scripts + CI deploy job (binaries not in git) | `deploy-site.ps1`, `release-desktop.yml` deploy-site job |
+| 12.8 ✓ | Host oversized installer on GitHub Releases | `publish-github-release.ps1`, `release_urls.py`, CI `gh release upload` |
+
+**Operator:** Run `gh auth login` then `.\scripts\publish-github-release.ps1 -Version 0.1.0` to upload the binary once.
 
 **Deferred:** mobile Capacitor (Phase 6), Haveno live quotes, optional Core RPC (9.8).
+
+---
+
+## 23. Phase 13 — Local-first (Wasabi-style) ✓ (foundation)
+
+**Goal:** Wallet core stays on-device; only leaderboard + optional cloud AI need CoinWallet servers.
+
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 13.1 | Document local vs remote split | Master plan architecture table | ✓ |
+| 13.2 | Token-based remote leaderboard API | `api/remote_leaderboard.py`, `global_leaderboard_entries` | ✓ |
+| 13.3 | Local sidecar syncs opt-in to remote URL | `COINWALLET_REMOTE_SERVICES_URL`, `api/remote_services.py` | ✓ |
+| 13.4 | Minimal cloud deploy app | `api/cloud_app.py`, `scripts/run-cloud-services.ps1` | ✓ |
+| 13.5 | Admin/site fetch leaderboard from remote URL | `VITE_REMOTE_SERVICES_URL`, `remote-services.ts` | ✓ |
+| 13.6 | Optional cloud AI hook (offline fallback) | `admin/src/lib/advisor/remote-ai.ts` | ✓ |
+| 13.7 | Bundle Python sidecar in NSIS installer | `build-api-sidecar.ps1`, PyInstaller, `externalBin` | ✓ |
+| 13.8 | Host cloud services + wire production URLs | Pages Functions + D1 on coinwallet.pages.dev | ✓ |
+
+---
+
+## 24. Phase 14 — Code review remediation
+
+**Goal:** Close bugs and security gaps from the 2026-06-27 code review — download OS detection, WebSocket auth, wallet delete policy, leaderboard network UX, and targeted tests.
+
+**Priority:** 14.1 → 14.2 → 14.3 → 14.4, then remainder.
+
+### 14.1 Download site — OS / browser detection
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 14.1 ✓ | Fix `detectOS()` false positives — use `windows nt` / `\bmac os\b` / `iphone|ipad`; check mobile before OS; avoid `/win/` matching `darwin` | `site/src/lib/detect-os.ts` |
+| 14.2 | iPad desktop-mode UA — treat as mobile or unknown; do not highlight macOS card | `detect-os.ts` + `download/+page.svelte` |
+| 14.3 | Unit tests for OS/browser detection against real UA samples (Windows, Mac Safari, iPhone, iPad desktop, Darwin WebView) | `site/src/lib/detect-os.test.ts` or `scripts/verify-detect-os.mjs` |
+
+### 14.2 API auth & session
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 14.4 | WebSocket auth — move session token off query string (post-connect auth message or `Sec-WebSocket-Protocol`; cookie on localhost) | `api/events.py`, admin WS client |
+| 14.5 | Reject empty/missing `Host` when `LOCALHOST_ONLY` / `STRICT_SECRETS` enabled | `api/middleware.py` |
+| 14.6 | Document dual auth model (HttpOnly cookie + Bearer in `sessionStorage`); tighten admin CSP in production build | `README.md`, admin `vite.config` or headers |
+
+### 14.3 Wallet & leaderboard behavior
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 14.7 | Require `require_wallet_unlocked` (or re-enter passphrase) for `DELETE /api/wallets/{id}` | `api/wallet.py` |
+| 14.8 | Leaderboard opt-in — accept explicit `network` in request body; align Settings UI with testnet/mainnet boards | `api/leaderboard.py`, settings + leaderboard pages |
+| 14.9 | Optional: do not `touch_unlock` on read-only GET routes (configurable `WALLET_TOUCH_ON_READ=false`) | `api/middleware.py`, Settings |
+
+### 14.4 Test coverage
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 14.10 | pytest: `list_wallets` / `get_wallet` never return `encrypted_seed` | `tests/test_wallet_secrets.py` |
+| 14.11 | pytest: leaderboard display-name validation + balance update rejection | `tests/test_leaderboard.py` |
+| 14.12 | pytest: mainnet gate blocks send/swap without v2 + ack | `tests/test_mainnet_gate.py` |
+| 14.13 | pytest: swap quote expiry rejected on stale execute | `tests/test_swap.py` |
+
+**Out of scope:** full mobile Capacitor hardening (11.22–11.24), paid pentest, forcing removal of Bearer tokens (desktop SPA depends on them today).
+
+---
+
+## 25. Phase 15 — Download website visual upgrade
+
+**Goal:** Make `site/` feel premium and product-ready — same neutral shadcn zinc + green money accent as admin, but with stronger layout, motion, and polish. No new paid assets or heavy animation libraries.
+
+**Design direction:** Dark zinc base, subtle green glow accents, crisp typography, glass-style cards, clear hierarchy. Match admin brand; site can be more marketing-forward.
+
+| ID | Task | Deliverable |
+|----|------|-------------|
+| 15.1 | Design tokens pass — typography scale, section spacing, shared `--glow-success`, card shadow utilities | `site/src/app.css` |
+| 15.2 | Logo mark + wordmark component (icon + CoinWallet split color) | `site/src/lib/components/BrandLogo.svelte` |
+| 15.3 | Header/footer upgrade — sticky blur nav, mobile hamburger menu, footer columns (Download, Legal, Links) | `SiteHeader.svelte`, `SiteFooter.svelte` |
+| 15.4 | Home hero — mesh/grid background, optional product mockup or wallet screenshot frame, stronger CTA pair | `site/src/routes/+page.svelte` |
+| 15.5 | Feature cards — Lucide-style inline SVG icons, hover lift + border glow | `+page.svelte` or `FeatureCard.svelte` |
+| 15.6 | Download page — polished platform cards, version badge, checksum copy button, detected-env tip styling | `download/+page.svelte` |
+| 15.7 | Leaderboard — rank medals for top 3, zebra rows, loading skeleton | `leaderboard/+page.svelte` |
+| 15.8 | Privacy / terms / install — consistent prose layout, table of contents on install guide | `privacy/`, `terms/`, `install/` |
+| 15.9 | Page transitions + reduced-motion respect (`prefers-reduced-motion`) | `+layout.svelte`, shared CSS |
+| 15.10 | SEO & social — OG/Twitter meta, theme-color, favicon set from app icon | `site/src/app.html`, `+page.svelte` head |
+| 15.11 | Lighthouse pass — fix contrast, tap targets, meta; document scores in `site/README.md` | manual audit + README note |
+
+**Constraints:** static adapter only; no client-side wallet logic on site; keep bundle lean (CSS + Svelte transitions, no Framer/Lottie unless user approves).
+
+*Last plan revision: 2026-06-27 — Phase 15 download website visual upgrade added.*

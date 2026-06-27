@@ -1,0 +1,11 @@
+name = "coinwallet-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "coinwallet-leaderboard"
+database_id = "1da2d7d2-58bd-4892-855b-e1bca0868209"
+
+[vars]
+# Set after first deploy if needed

@@ -1,0 +1,37 @@
+name: Deploy cloud API
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - "cloud/**"
+      - ".github/workflows/deploy-cloud-api.yml"
+
+concurrency:
+  group: deploy-cloud-api
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cloud/package.json
+
+      - name: Install and deploy Worker
+        working-directory: cloud
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npm install
+          npx wrangler d1 execute coinwallet-leaderboard --remote --file=./schema.sql || true
+          npx wrangler deploy

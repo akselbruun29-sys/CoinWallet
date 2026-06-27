@@ -8,6 +8,7 @@ import json
 import os
 import subprocess
 import sys
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,10 @@ MANIFEST = ROOT / "releases" / "releases.json"
 SITE_MANIFEST = ROOT / "site" / "static" / "releases" / "releases.json"
 ARTIFACTS_META = ROOT / "scripts" / "release-artifacts.json"
 
-ARTIFACTS = json.loads(ARTIFACTS_META.read_text(encoding="utf-8"))
+sys.path.insert(0, str(ROOT / "scripts"))
+from release_urls import load_artifacts_meta, resolve_platform_url
+
+ARTIFACTS = load_artifacts_meta()
 
 
 def sha256(path: Path) -> str:
@@ -64,12 +68,14 @@ def main() -> None:
         data["signer_fingerprint"] = global_fp
 
     for key, meta in ARTIFACTS.items():
+        if key in ("github_repo", "cf_pages_max_mib"):
+            continue
         filename = meta["filename"]
-        url = meta["url"]
         path = ROOT / "releases" / filename
         if not path.exists():
             print(f"Skip {key} — not found: {path}")
             continue
+        url = resolve_platform_url(key, version=args.version, artifact_path=path)
         data["platforms"][key]["url"] = url
         data["platforms"][key]["sha256"] = sha256(path)
         if args.mark_available:

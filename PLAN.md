@@ -210,6 +210,23 @@ Also covers: production CORS/security headers, CSRF or SameSite policy, session 
 
 See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)** §21 for the full task list.
 
+### Phase 14 — Code review remediation
+Fixes from the 2026-06-27 review (see master plan §24):
+
+1. **Download detection** — fix OS UA false positives (Darwin → Windows, iPad → macOS)
+2. **WebSocket auth** — token off query string
+3. **Wallet delete** — require unlock or passphrase re-auth
+4. **Leaderboard opt-in** — explicit network in API + Settings alignment
+5. **Targeted pytest** — wallet secret exclusion, leaderboard rules, mainnet gate, swap expiry
+
+### Phase 15 — Download website visual upgrade
+Polish the public `site/` — premium dark marketing look (see master plan §25):
+
+- Design tokens, logo, sticky nav + mobile menu
+- Hero mesh background + feature icons
+- Download / leaderboard / legal page polish
+- OG meta, favicon, Lighthouse pass
+
 ---
 
 ## Tech Stack (target)

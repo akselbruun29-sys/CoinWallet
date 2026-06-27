@@ -28,6 +28,7 @@ from api.auth import (
 )
 from api.rate_limit import check_rate_limit
 from api.leaderboard import router as leaderboard_router
+from api.remote_leaderboard import router as remote_leaderboard_router
 from api.middleware import (
     CsrfOriginMiddleware,
     LocalhostOnlyMiddleware,
@@ -109,6 +110,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(wallet_router)
 app.include_router(swap_router)
 app.include_router(leaderboard_router)
+app.include_router(remote_leaderboard_router)
 app.include_router(admin_router)
 app.include_router(events_router)
 app.include_router(security_router)

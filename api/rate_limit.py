@@ -25,6 +25,9 @@ SCOPE_LIMITS: dict[str, tuple[int, int]] = {
     "swap_execute": (20, 60),
     "leaderboard_get": (120, 60),
     "leaderboard_update": (6, 60),
+    "leaderboard_remote_register": (20, 60),
+    "leaderboard_remote_update": (6, 60),
+    "leaderboard_remote_opt_out": (10, 60),
 }
 
 

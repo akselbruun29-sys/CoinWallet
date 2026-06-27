@@ -1,3 +1,5 @@
+import { remoteGet, remoteServicesEnabled } from './remote-services';
+
 export const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8002';
 
 const TOKEN_KEY = 'wv_auth_token';
@@ -548,7 +550,13 @@ export const api = {
       body: JSON.stringify(data)
     }),
   leaderboard: (network = 'testnet', limit = 100) =>
-    request<LeaderboardResponse>(`/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`),
+    remoteServicesEnabled()
+      ? remoteGet<LeaderboardResponse>(
+          `/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`
+        )
+      : request<LeaderboardResponse>(
+          `/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`
+        ),
   leaderboardMe: (network = 'testnet') =>
     request<LeaderboardMe>(`/api/leaderboard/me?network=${encodeURIComponent(network)}`),
   leaderboardOptIn: (display_name: string, opted_in: boolean) =>

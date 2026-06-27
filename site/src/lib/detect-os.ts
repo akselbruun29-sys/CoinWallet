@@ -5,8 +5,11 @@ export type DetectedOS = PlatformId | 'unknown';
 export function detectOS(userAgent: string): DetectedOS {
   const ua = userAgent.toLowerCase();
 
-  if (/win/.test(ua)) return 'windows';
-  if (/mac/.test(ua)) return 'mac';
+  // Mobile first — do not highlight a desktop platform card on phones/tablets.
+  if (/iphone|ipad|ipod|android/.test(ua)) return 'unknown';
+
+  if (/windows nt/.test(ua)) return 'windows';
+  if (/\bmac os\b/.test(ua)) return 'mac';
 
   return 'unknown';
 }

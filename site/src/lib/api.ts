@@ -1,5 +1,8 @@
-export const PUBLIC_API_URL =
-  import.meta.env.VITE_PUBLIC_API_URL ?? 'http://127.0.0.1:8002';
+export const PUBLIC_API_URL = (
+  import.meta.env.VITE_REMOTE_SERVICES_URL ??
+  import.meta.env.VITE_PUBLIC_API_URL ??
+  ''
+).replace(/\/$/, '');
 
 export type LeaderboardEntry = {
   rank: number;
@@ -16,8 +19,11 @@ export async function fetchLeaderboard(
   network: string,
   limit = 100
 ): Promise<LeaderboardResponse> {
+  const base =
+    PUBLIC_API_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:8002');
   const res = await fetch(
-    `${PUBLIC_API_URL}/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`
+    `${base}/api/leaderboard?network=${encodeURIComponent(network)}&limit=${limit}`
   );
   if (!res.ok) {
     throw new Error('Could not load leaderboard');

@@ -14,6 +14,13 @@ const config = {
     }),
     prerender: {
       entries: ['*'],
+      handleHttpError: ({ path, message }) => {
+        if (path.startsWith('/releases/') && /\.(exe|dmg)$/i.test(path)) {
+          console.warn(message);
+          return;
+        }
+        throw new Error(message);
+      },
     },
   },
 };

@@ -11,6 +11,14 @@ from pydantic import BaseModel, Field
 
 from api.auth import AuthUser, get_current_user, get_db
 from api.rate_limit import check_rate_limit
+from api.remote_services import (
+    new_leaderboard_token,
+    remote_leaderboard_opt_out,
+    remote_leaderboard_register,
+    remote_leaderboard_update,
+    remote_services_url,
+    leaderboard_cloud_mode,
+)
 from src.database import WalletDatabase
 
 router = APIRouter(prefix="/api/leaderboard", tags=["leaderboard"])
@@ -74,6 +82,10 @@ def push_leaderboard_balance(db: WalletDatabase, user_id: int, network: str) -> 
     db.update_leaderboard_balance(user_id, network, balance)
     _cache.clear()
 
+    token = entry.get("remote_token")
+    if remote_services_url() and token:
+        remote_leaderboard_update(token, network, balance)
+
 
 class OptInRequest(BaseModel):
     display_name: str = Field(..., min_length=2, max_length=32)
@@ -103,7 +115,11 @@ def get_leaderboard(
 
     payload = {
         "network": network,
-        "entries": db.list_leaderboard(network, limit),
+        "entries": (
+            db.list_global_leaderboard(network, limit)
+            if leaderboard_cloud_mode()
+            else db.list_leaderboard(network, limit)
+        ),
     }
     _cache_set(cache_key, payload)
     return JSONResponse(
@@ -152,15 +168,23 @@ def leaderboard_opt_in(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         balance = db.user_total_balance_sats(user.id, network)
+        existing = db.get_leaderboard_entry(user.id, network)
+        remote_token = (existing or {}).get("remote_token") or new_leaderboard_token()
         db.set_leaderboard_opt_in(
-            user.id, network, display_name, True, balance
+            user.id, network, display_name, True, balance, remote_token=remote_token
         )
+        if remote_services_url():
+            remote_leaderboard_register(remote_token, display_name, network, balance)
         db.add_audit(
             "LEADERBOARD_OPT_IN",
             user_id=user.id,
             details=f"network={network}",
         )
     else:
+        existing = db.get_leaderboard_entry(user.id, network)
+        token = (existing or {}).get("remote_token")
+        if remote_services_url() and token:
+            remote_leaderboard_opt_out(token, network)
         db.set_leaderboard_opt_in(user.id, network, "", False)
         db.add_audit(
             "LEADERBOARD_OPT_OUT",

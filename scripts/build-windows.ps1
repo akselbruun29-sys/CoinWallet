@@ -1,4 +1,4 @@
-# Build CoinWallet for Windows — admin UI + Tauri + copy to releases/
+# Build CoinWallet for Windows - admin UI + Tauri + copy to releases/
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
@@ -18,6 +18,10 @@ Write-Host "Pre-release security checks..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "..\venv\Scripts\python.exe") (Join-Path $PSScriptRoot "verify_release_security.py")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "Building frozen API sidecar..." -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "build-api-sidecar.ps1")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "Building admin UI (desktop)..." -ForegroundColor Cyan
 npm run build:desktop --prefix admin
 
@@ -27,7 +31,7 @@ cargo tauri build
 $nsisDir = Join-Path $PWD "src-tauri\target\release\bundle\nsis"
 $setup = Get-ChildItem -Path $nsisDir -Filter "*-setup.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $setup) {
-    Write-Error "NSIS installer not found under $nsisDir — expected *-setup.exe from cargo tauri build"
+    Write-Error "NSIS installer not found under $nsisDir - expected *-setup.exe from cargo tauri build"
 }
 
 $dest = Join-Path $PWD "releases\coinwallet-windows-x64-setup.exe"

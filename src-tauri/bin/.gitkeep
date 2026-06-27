@@ -1,0 +1,2 @@
+# Built by scripts/build-api-sidecar.ps1 before `cargo tauri build`.
+# Do not commit the .exe — CI and local release builds produce it.

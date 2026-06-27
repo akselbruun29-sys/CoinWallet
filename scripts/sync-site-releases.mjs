@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Copy releases manifest and desktop artifacts into site/static for deploy. */
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,9 +27,18 @@ const names = new Set(
     .filter(Boolean)
 );
 
+const CF_PAGES_MAX_BYTES = 24 * 1024 * 1024; // Cloudflare Pages file limit is 25 MiB
+
 for (const name of names) {
   const src = join(releasesDir, name);
   if (!existsSync(src)) {
+    continue;
+  }
+  const { size } = statSync(src);
+  if (size > CF_PAGES_MAX_BYTES) {
+    console.warn(
+      `Skip ${name} (${(size / 1024 / 1024).toFixed(1)} MiB) — exceeds Cloudflare Pages 25 MiB limit; host on GitHub Releases or R2 and set platforms.*.url in releases.json`
+    );
     continue;
   }
   const dest = join(staticReleases, name);

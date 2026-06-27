@@ -1,11 +1,42 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::plugin::{Builder as PluginBuilder, TauriPlugin};
-use tauri::{Manager, RunEvent};
+use tauri::{AppHandle, Manager, RunEvent};
 use url::Url;
 
 struct ApiSidecar(Mutex<Option<Child>>);
+
+fn app_data_dir() -> PathBuf {
+    if let Ok(custom) = std::env::var("COINWALLET_APP_DATA") {
+        if !custom.trim().is_empty() {
+            return PathBuf::from(custom);
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        if let Ok(local) = std::env::var("LOCALAPPDATA") {
+            return PathBuf::from(local).join("CoinWallet");
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            return PathBuf::from(home)
+                .join("Library")
+                .join("Application Support")
+                .join("CoinWallet");
+        }
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        return PathBuf::from(home).join(".coinwallet");
+    }
+
+    PathBuf::from(".coinwallet")
+}
 
 fn project_root() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
@@ -29,12 +60,61 @@ fn project_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
 
-fn python_executable(root: &PathBuf) -> PathBuf {
+fn python_executable(root: &Path) -> PathBuf {
     if cfg!(windows) {
         root.join("venv").join("Scripts").join("python.exe")
     } else {
         root.join("venv").join("bin").join("python")
     }
+}
+
+fn bundled_sidecar_name() -> &'static str {
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    {
+        return "coinwallet-api-x86_64-pc-windows-msvc.exe";
+    }
+    #[cfg(all(windows, target_arch = "aarch64"))]
+    {
+        return "coinwallet-api-aarch64-pc-windows-msvc.exe";
+    }
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        return "coinwallet-api-aarch64-apple-darwin";
+    }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        return "coinwallet-api-x86_64-apple-darwin";
+    }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    {
+        return "coinwallet-api-x86_64-unknown-linux-gnu";
+    }
+    #[allow(unreachable_code)]
+    {
+        "coinwallet-api"
+    }
+}
+
+fn resolve_bundled_sidecar(app: &AppHandle) -> Option<PathBuf> {
+    let name = bundled_sidecar_name();
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let candidate = parent.join(name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let candidate = resource_dir.join(name);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
+    None
 }
 
 fn configure_hidden_sidecar(cmd: &mut Command) {
@@ -50,11 +130,36 @@ fn configure_hidden_sidecar(cmd: &mut Command) {
     }
 }
 
-fn start_api_sidecar(root: &PathBuf) -> Option<Child> {
+fn apply_sidecar_env(cmd: &mut Command, app_data: &Path) {
+    cmd.env("COINWALLET_APP_DATA", app_data);
+    cmd.env("COINWALLET_API_HOST", "127.0.0.1");
+    cmd.env("COINWALLET_API_PORT", "8002");
+
+    if cfg!(debug_assertions) {
+        cmd.env("COINWALLET_PRODUCTION", "false");
+        cmd.env("STRICT_SECRETS", "false");
+    } else {
+        cmd.env("COINWALLET_PRODUCTION", "true");
+        cmd.env("STRICT_SECRETS", "true");
+    }
+
+    if let Ok(remote) = std::env::var("COINWALLET_REMOTE_SERVICES_URL") {
+        if !remote.trim().is_empty() {
+            cmd.env("COINWALLET_REMOTE_SERVICES_URL", remote.trim());
+        }
+    } else if cfg!(not(debug_assertions)) {
+        cmd.env(
+            "COINWALLET_REMOTE_SERVICES_URL",
+            "https://coinwallet.pages.dev",
+        );
+    }
+}
+
+fn start_dev_python_sidecar(root: &Path, app_data: &Path) -> Option<Child> {
     let python = python_executable(root);
     if !python.exists() {
         log::warn!(
-            "Python venv not found at {} - start the API manually or run setup first",
+            "Python venv not found at {} — start the API manually or run setup first",
             python.display()
         );
         return None;
@@ -62,14 +167,6 @@ fn start_api_sidecar(root: &PathBuf) -> Option<Child> {
 
     let mut cmd = Command::new(&python);
     cmd.current_dir(root)
-        .env(
-            "COINWALLET_PRODUCTION",
-            if cfg!(debug_assertions) {
-                "false"
-            } else {
-                "true"
-            },
-        )
         .args([
             "-m",
             "uvicorn",
@@ -79,22 +176,50 @@ fn start_api_sidecar(root: &PathBuf) -> Option<Child> {
             "--port",
             "8002",
         ]);
+    apply_sidecar_env(&mut cmd, app_data);
 
-    if cfg!(not(debug_assertions)) {
-        configure_hidden_sidecar(&mut cmd);
-    }
-
-    match cmd.spawn()
-    {
+    match cmd.spawn() {
         Ok(child) => {
-            log::info!("Started local wallet API on http://127.0.0.1:8002");
+            log::info!("Started dev wallet API on http://127.0.0.1:8002");
             Some(child)
         }
         Err(err) => {
-            log::error!("Failed to start wallet API sidecar: {err}");
+            log::error!("Failed to start dev wallet API: {err}");
             None
         }
     }
+}
+
+fn start_bundled_sidecar(binary: &Path, app_data: &Path) -> Option<Child> {
+    let mut cmd = Command::new(binary);
+    apply_sidecar_env(&mut cmd, app_data);
+    configure_hidden_sidecar(&mut cmd);
+
+    match cmd.spawn() {
+        Ok(child) => {
+            log::info!("Started bundled wallet API on http://127.0.0.1:8002");
+            Some(child)
+        }
+        Err(err) => {
+            log::error!("Failed to start bundled wallet API: {err}");
+            None
+        }
+    }
+}
+
+fn start_api_sidecar(app: &AppHandle, app_data: &Path) -> Option<Child> {
+    let _ = std::fs::create_dir_all(app_data);
+
+    if cfg!(debug_assertions) {
+        return start_dev_python_sidecar(&project_root(), app_data);
+    }
+
+    if let Some(binary) = resolve_bundled_sidecar(app) {
+        return start_bundled_sidecar(&binary, app_data);
+    }
+
+    log::warn!("Bundled API sidecar not found — falling back to dev venv layout");
+    start_dev_python_sidecar(&project_root(), app_data)
 }
 
 fn stop_api_sidecar(sidecar: &ApiSidecar) {
@@ -116,6 +241,8 @@ fn allow_navigation(url: &Url) -> bool {
                     || host == "127.0.0.1"
                     || host.ends_with("blockstream.info")
                     || host.ends_with("xmrchain.net")
+                    || host.ends_with(".workers.dev")
+                    || host == "coinwallet.pages.dev"
             })
             .unwrap_or(false),
         _ => false,
@@ -130,13 +257,12 @@ fn navigation_guard_plugin<R: tauri::Runtime>() -> TauriPlugin<R> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let root = project_root();
-    let sidecar_child = start_api_sidecar(&root);
+    let app_data = app_data_dir();
 
     let app = tauri::Builder::default()
         .plugin(navigation_guard_plugin())
-        .manage(ApiSidecar(Mutex::new(sidecar_child)))
-        .setup(|app| {
+        .manage(ApiSidecar(Mutex::new(None)))
+        .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -144,6 +270,14 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            let child = start_api_sidecar(app.handle(), &app_data);
+            if let Some(state) = app.try_state::<ApiSidecar>() {
+                if let Ok(mut guard) = state.0.lock() {
+                    *guard = child;
+                }
+            }
+
             Ok(())
         })
         .build(tauri::generate_context!())

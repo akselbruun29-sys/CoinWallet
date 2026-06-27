@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { activeWalletId } from '$lib/stores/wallet';
-	import { runAdvisor, type AdvisorReport } from '$lib/advisor';
+	import { runAdvisorWithOptionalCloud, type AdvisorReport } from '$lib/advisor';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
@@ -59,7 +59,7 @@
 				privacy = p;
 			}
 
-			report = runAdvisor({
+			report = await runAdvisorWithOptionalCloud({
 				walletId: $activeWalletId,
 				walletName,
 				network,
