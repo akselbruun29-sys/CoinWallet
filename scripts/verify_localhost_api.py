@@ -37,7 +37,12 @@ def main() -> int:
         print(f"FAIL — expected 403 for foreign Host header, got {bad_code}")
         return 1
 
-    print("OK — API accepts localhost Host and rejects foreign Host headers")
+    missing_code, _ = _get("/api/health", headers={"Host": ""})
+    if missing_code != 403:
+        print(f"FAIL — expected 403 for empty Host header, got {missing_code}")
+        return 1
+
+    print("OK — API accepts localhost Host and rejects foreign/missing Host headers")
     return 0
 
 

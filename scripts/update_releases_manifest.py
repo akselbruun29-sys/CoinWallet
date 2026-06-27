@@ -67,6 +67,10 @@ def main() -> None:
     if global_fp:
         data["signer_fingerprint"] = global_fp
 
+    github_repo = ARTIFACTS.get("github_repo")
+    if github_repo:
+        data["github_repo"] = github_repo
+
     for key, meta in ARTIFACTS.items():
         if key in ("github_repo", "cf_pages_max_mib"):
             continue

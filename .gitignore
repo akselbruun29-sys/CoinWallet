@@ -26,3 +26,8 @@ site/static/releases/*.exe
 site/static/releases/*.dmg
 src-tauri/bin/*.exe
 src-tauri/bin/coinwallet-api*
+src-tauri/bin/tor*
+src-tauri/resources/tor/tor.exe
+src-tauri/resources/tor/*.dll
+src-tauri/resources/tor/pluggable_transports/
+src-tauri/resources/tor/.version

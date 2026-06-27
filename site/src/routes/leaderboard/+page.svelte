@@ -28,6 +28,17 @@
     load();
   }
 
+  function rankClass(rank: number): string {
+    if (rank === 1) return 'rank-gold font-semibold';
+    if (rank === 2) return 'rank-silver font-semibold';
+    if (rank === 3) return 'rank-bronze font-semibold';
+    return 'text-muted-foreground';
+  }
+
+  function rankLabel(rank: number): string {
+    return `#${rank}`;
+  }
+
   onMount(load);
 </script>
 
@@ -39,10 +50,10 @@
   />
 </svelte:head>
 
-<main class="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+<main class="site-section site-container">
   <div class="mb-10 text-center">
-    <h1 class="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">Leaderboard</h1>
-    <p class="mx-auto max-w-2xl text-muted-foreground">
+    <h1 class="page-heading mb-3">Leaderboard</h1>
+    <p class="page-lead mx-auto max-w-2xl">
       Opt-in ranking by total balance. No addresses or transaction history — display name and balance
       only.
     </p>
@@ -52,8 +63,8 @@
     {#each networks as n}
       <button
         type="button"
-        class="rounded-lg border px-4 py-2 text-sm font-medium transition-colors {network === n
-          ? 'border-primary bg-primary/10 text-primary'
+        class="min-h-11 rounded-lg border px-4 py-2 text-sm font-medium transition-colors {network === n
+          ? 'border-success bg-success/10 text-success'
           : 'border-border text-muted-foreground hover:text-foreground'}"
         onclick={() => setNetwork(n)}
       >
@@ -62,9 +73,9 @@
     {/each}
   </div>
 
-  <div class="overflow-hidden rounded-xl border border-border">
+  <div class="glass-card overflow-hidden">
     <table class="w-full text-left text-sm">
-      <thead class="border-b border-border bg-card">
+      <thead class="border-b border-border bg-card/80">
         <tr>
           <th class="px-4 py-3 font-medium text-muted-foreground">Rank</th>
           <th class="px-4 py-3 font-medium text-muted-foreground">Display name</th>
@@ -73,9 +84,13 @@
       </thead>
       <tbody>
         {#if loading}
-          <tr>
-            <td colspan="3" class="px-4 py-12 text-center text-muted-foreground">Loading…</td>
-          </tr>
+          {#each Array(5) as _, i}
+            <tr class="border-b border-border/60">
+              <td class="px-4 py-4"><div class="skeleton h-4 w-8"></div></td>
+              <td class="px-4 py-4"><div class="skeleton h-4 w-32"></div></td>
+              <td class="px-4 py-4"><div class="skeleton ml-auto h-4 w-20"></div></td>
+            </tr>
+          {/each}
         {:else if error}
           <tr>
             <td colspan="3" class="px-4 py-12 text-center text-muted-foreground">{error}</td>
@@ -88,10 +103,14 @@
           </tr>
         {:else}
           {#each entries as entry (entry.rank)}
-            <tr class="border-b border-border last:border-0">
-              <td class="px-4 py-3 font-mono text-muted-foreground">{entry.rank}</td>
+            <tr
+              class="border-b border-border/60 last:border-0 even:bg-muted/20 {entry.rank <= 3
+                ? 'bg-success/5'
+                : ''}"
+            >
+              <td class="px-4 py-3 font-mono {rankClass(entry.rank)}">{rankLabel(entry.rank)}</td>
               <td class="px-4 py-3 font-medium">{entry.display_name}</td>
-              <td class="px-4 py-3 text-right font-mono">{formatBtc(entry.balance_sats)}</td>
+              <td class="px-4 py-3 text-right font-mono text-success">{formatBtc(entry.balance_sats)}</td>
             </tr>
           {/each}
         {/if}

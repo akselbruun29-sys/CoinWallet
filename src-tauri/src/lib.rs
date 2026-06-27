@@ -5,6 +5,9 @@ use tauri::plugin::{Builder as PluginBuilder, TauriPlugin};
 use tauri::{AppHandle, Manager, RunEvent};
 use url::Url;
 
+mod tor_sidecar;
+use tor_sidecar::{apply_tor_env, start_tor_sidecar, stop_tor_sidecar, TorSidecar};
+
 struct ApiSidecar(Mutex<Option<Child>>);
 
 fn app_data_dir() -> PathBuf {
@@ -130,7 +133,7 @@ fn configure_hidden_sidecar(cmd: &mut Command) {
     }
 }
 
-fn apply_sidecar_env(cmd: &mut Command, app_data: &Path) {
+fn apply_sidecar_env(cmd: &mut Command, app_data: &Path, tor_active: bool) {
     cmd.env("COINWALLET_APP_DATA", app_data);
     cmd.env("COINWALLET_API_HOST", "127.0.0.1");
     cmd.env("COINWALLET_API_PORT", "8002");
@@ -141,6 +144,10 @@ fn apply_sidecar_env(cmd: &mut Command, app_data: &Path) {
     } else {
         cmd.env("COINWALLET_PRODUCTION", "true");
         cmd.env("STRICT_SECRETS", "true");
+    }
+
+    if tor_active {
+        apply_tor_env(cmd);
     }
 
     if let Ok(remote) = std::env::var("COINWALLET_REMOTE_SERVICES_URL") {
@@ -155,7 +162,7 @@ fn apply_sidecar_env(cmd: &mut Command, app_data: &Path) {
     }
 }
 
-fn start_dev_python_sidecar(root: &Path, app_data: &Path) -> Option<Child> {
+fn start_dev_python_sidecar(root: &Path, app_data: &Path, tor_active: bool) -> Option<Child> {
     let python = python_executable(root);
     if !python.exists() {
         log::warn!(
@@ -176,7 +183,7 @@ fn start_dev_python_sidecar(root: &Path, app_data: &Path) -> Option<Child> {
             "--port",
             "8002",
         ]);
-    apply_sidecar_env(&mut cmd, app_data);
+    apply_sidecar_env(&mut cmd, app_data, tor_active);
 
     match cmd.spawn() {
         Ok(child) => {
@@ -190,9 +197,9 @@ fn start_dev_python_sidecar(root: &Path, app_data: &Path) -> Option<Child> {
     }
 }
 
-fn start_bundled_sidecar(binary: &Path, app_data: &Path) -> Option<Child> {
+fn start_bundled_sidecar(binary: &Path, app_data: &Path, tor_active: bool) -> Option<Child> {
     let mut cmd = Command::new(binary);
-    apply_sidecar_env(&mut cmd, app_data);
+    apply_sidecar_env(&mut cmd, app_data, tor_active);
     configure_hidden_sidecar(&mut cmd);
 
     match cmd.spawn() {
@@ -207,19 +214,19 @@ fn start_bundled_sidecar(binary: &Path, app_data: &Path) -> Option<Child> {
     }
 }
 
-fn start_api_sidecar(app: &AppHandle, app_data: &Path) -> Option<Child> {
+fn start_api_sidecar(app: &AppHandle, app_data: &Path, tor_active: bool) -> Option<Child> {
     let _ = std::fs::create_dir_all(app_data);
 
     if cfg!(debug_assertions) {
-        return start_dev_python_sidecar(&project_root(), app_data);
+        return start_dev_python_sidecar(&project_root(), app_data, tor_active);
     }
 
     if let Some(binary) = resolve_bundled_sidecar(app) {
-        return start_bundled_sidecar(&binary, app_data);
+        return start_bundled_sidecar(&binary, app_data, tor_active);
     }
 
     log::warn!("Bundled API sidecar not found — falling back to dev venv layout");
-    start_dev_python_sidecar(&project_root(), app_data)
+    start_dev_python_sidecar(&project_root(), app_data, tor_active)
 }
 
 fn stop_api_sidecar(sidecar: &ApiSidecar) {
@@ -262,6 +269,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(navigation_guard_plugin())
         .manage(ApiSidecar(Mutex::new(None)))
+        .manage(TorSidecar(Mutex::new(None)))
         .setup(move |app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -271,7 +279,15 @@ pub fn run() {
                 )?;
             }
 
-            let child = start_api_sidecar(app.handle(), &app_data);
+            let tor_child = start_tor_sidecar(app.handle(), &app_data);
+            let tor_active = tor_child.is_some();
+            if let Some(state) = app.try_state::<TorSidecar>() {
+                if let Ok(mut guard) = state.0.lock() {
+                    *guard = tor_child;
+                }
+            }
+
+            let child = start_api_sidecar(app.handle(), &app_data, tor_active);
             if let Some(state) = app.try_state::<ApiSidecar>() {
                 if let Ok(mut guard) = state.0.lock() {
                     *guard = child;
@@ -287,6 +303,9 @@ pub fn run() {
         if matches!(event, RunEvent::Exit) {
             if let Some(sidecar) = app_handle.try_state::<ApiSidecar>() {
                 stop_api_sidecar(sidecar.inner());
+            }
+            if let Some(tor) = app_handle.try_state::<TorSidecar>() {
+                stop_tor_sidecar(tor.inner());
             }
         }
     });

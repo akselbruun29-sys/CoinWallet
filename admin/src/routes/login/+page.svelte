@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { api, type AuthConfig } from '$lib/api';
+	import { IS_DESKTOP_BUILD } from '$lib/desktop';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
@@ -23,6 +24,18 @@
 	let config: AuthConfig | null = $state(null);
 
 	onMount(async () => {
+		if (IS_DESKTOP_BUILD) {
+			try {
+				const net = await api.networkStatus();
+				if (!net.network_wizard_complete) {
+					goto('/setup');
+					return;
+				}
+			} catch {
+				goto('/setup');
+				return;
+			}
+		}
 		try {
 			config = await api.authConfig();
 		} catch {

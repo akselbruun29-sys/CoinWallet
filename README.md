@@ -241,6 +241,40 @@ flowchart LR
 
 Never share your recovery phrase or wallet passphrase. You trust whoever runs the server — they could change code. Only use instances you trust.
 
+### Session authentication (dual model)
+
+Login establishes **two** session carriers. The API accepts either one via `get_any_authenticated_user` in `api/auth.py`:
+
+| Mechanism | Storage | Used by | Notes |
+|-----------|---------|---------|-------|
+| **Bearer token** | `sessionStorage` key `wv_auth_token` | Desktop / Tauri SPA (primary) | Returned in `POST /api/auth/login` JSON; sent as `Authorization: Bearer …` on each request; cleared on logout or `401` |
+| **HttpOnly cookie** | `wv_session` cookie | Browser-style flows | Set on login with `SameSite=Lax`; mutating cookie requests must pass Origin/Referer checks (`CsrfOriginMiddleware`) |
+
+The admin client always sends `credentials: 'include'` and Bearer when a token exists. **Desktop builds rely on Bearer** because the embedded webview talks to the local sidecar on a different port than the static UI.
+
+Session limits (configurable via `.env`):
+
+- **Max age:** 7 days (`SESSION_MAX_AGE` in `api/auth.py`)
+- **Idle timeout:** default 1 hour (`SESSION_IDLE_SECONDS`)
+- **Rotation:** authenticated activity may return `X-Session-Token`; the client updates `sessionStorage`
+
+WebSocket live updates (`/api/ws/events`) authenticate **after connect** with `{ "type": "auth", "token": "…" }` — the session token is never placed in the URL query string.
+
+See `GET /api/auth/config` for `auth_primary`, `csrf_model`, and registration flags.
+
+### Network privacy (desktop — Tor + light client)
+
+Production desktop builds (**Option A — Wasabi-style network bootstrap**):
+
+1. **Bundled Tor** starts with the app (`scripts/setup-tor.ps1` stages Tor Expert Bundle into the installer).
+2. **SOCKS proxy** on `127.0.0.1:9050` — the API sidecar sets `HTTP_PROXY` / `TOR_ENABLED` automatically.
+3. **Bitcoin sync** stays a **light client** (Esplora over Tor). No full blockchain download.
+4. **First-run wizard** at `/setup` waits for Tor bootstrap, then continues to sign-in.
+
+Leaderboard and optional cloud AI remain **separate clearnet** opt-in services — wallet keys and sync never use CoinWallet servers.
+
+Toggle Tor for Bitcoin sync in **Settings → Network** (`tor_enabled` in system settings). Rebuild the installer after `scripts/setup-tor.ps1` to include Tor binaries.
+
 ---
 
 ## Using on your phone

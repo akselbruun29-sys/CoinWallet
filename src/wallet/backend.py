@@ -7,6 +7,7 @@ from typing import Any, Optional, Protocol
 import requests
 
 from src.wallet.keys import esplora_base_url
+from src.wallet.tor import apply_tor_proxies, tor_enabled_for_db
 
 
 class ChainBackend(Protocol):
@@ -22,13 +23,12 @@ class ChainBackend(Protocol):
 
 
 class EsploraBackend:
-    def __init__(self, network: str = "testnet"):
+    def __init__(self, network: str = "testnet", db: Optional[Any] = None):
         self.network = network
+        self._db = db
         self.base_url = esplora_base_url(network)
         self.session = requests.Session()
-        proxy = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY")
-        if os.getenv("TOR_ENABLED", "false").lower() == "true" and proxy:
-            self.session.proxies.update({"http": proxy, "https": proxy})
+        apply_tor_proxies(self.session, db)
 
     def backend_name(self) -> str:
         return "esplora"
@@ -78,13 +78,13 @@ class EsploraBackend:
 class BitcoinCoreBackend:
     """Hybrid backend: Core RPC for chain tip, fees, broadcast; Esplora for address indexes."""
 
-    def __init__(self, network: str = "testnet"):
+    def __init__(self, network: str = "testnet", db: Optional[Any] = None):
         self.network = network
         self.rpc_url = os.getenv("BITCOIN_RPC_URI", "http://127.0.0.1:18332")
         self.rpc_user = os.getenv("BITCOIN_RPC_USER", "")
         self.rpc_password = os.getenv("BITCOIN_RPC_PASSWORD", "")
         self.session = requests.Session()
-        self._esplora = EsploraBackend(network)
+        self._esplora = EsploraBackend(network, db)
 
     def backend_name(self) -> str:
         return "core"
@@ -132,5 +132,5 @@ def get_backend(network: str, db: Optional[Any] = None) -> ChainBackend:
         backend_type = db.get_setting("backend_type", backend_type).lower()
 
     if backend_type == "core":
-        return BitcoinCoreBackend(network)
-    return EsploraBackend(network)
+        return BitcoinCoreBackend(network, db)
+    return EsploraBackend(network, db)

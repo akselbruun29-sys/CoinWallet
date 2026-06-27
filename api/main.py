@@ -37,6 +37,7 @@ from api.middleware import (
     WalletActivityMiddleware,
 )
 from api.swap import router as swap_router
+from api.network import router as network_router
 from api.wallet import router as wallet_router
 from src.config import validate_secrets
 from src.database import WalletDatabase
@@ -108,6 +109,7 @@ app.add_middleware(WalletActivityMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(wallet_router)
+app.include_router(network_router)
 app.include_router(swap_router)
 app.include_router(leaderboard_router)
 app.include_router(remote_leaderboard_router)

@@ -270,6 +270,16 @@ export interface SystemInfo {
   message?: string;
 }
 
+export interface NetworkStatus {
+  tor_enabled: boolean;
+  tor_managed: boolean;
+  tor_proxy: string | null;
+  tor_bootstrap_complete: boolean;
+  network_wizard_complete: boolean;
+  backend: string;
+  light_client: boolean;
+}
+
 export function getToken(): string | null {
   if (typeof sessionStorage === 'undefined') return null;
   return sessionStorage.getItem(TOKEN_KEY);
@@ -563,5 +573,14 @@ export const api = {
     request<LeaderboardMe>('/api/leaderboard/opt-in', {
       method: 'POST',
       body: JSON.stringify({ display_name, opted_in })
-    })
+    }),
+  networkStatus: () => request<NetworkStatus>('/api/network/status'),
+  completeNetworkSetup: (skip_tor = false) =>
+    request<{ network_wizard_complete: boolean; tor_enabled: boolean }>(
+      '/api/network/complete-setup',
+      {
+        method: 'POST',
+        body: JSON.stringify({ skip_tor })
+      }
+    )
 };

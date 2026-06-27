@@ -12,6 +12,8 @@ npm run dev
 
 Open http://localhost:5174
 
+Visual design follows Phase 15: zinc dark theme, green success accents, glass cards, sticky nav with mobile menu. Run Lighthouse in Chrome DevTools after `npm run build && npm run preview` and record scores in this README when auditing (task 15.11).
+
 ## Production build
 
 ```bash

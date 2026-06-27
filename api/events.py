@@ -2,23 +2,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from api.auth import verify_session_token
+from api.auth import SESSION_COOKIE, verify_session_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ws", tags=["events"])
+
+_AUTH_TIMEOUT_SECONDS = 10
 
 
 class EventHub:
     def __init__(self) -> None:
         self._connections: dict[int, list[WebSocket]] = {}
 
-    async def connect(self, user_id: int, websocket: WebSocket) -> None:
-        await websocket.accept()
+    def register(self, user_id: int, websocket: WebSocket) -> None:
         self._connections.setdefault(user_id, []).append(websocket)
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:
@@ -39,15 +41,54 @@ class EventHub:
 hub = EventHub()
 
 
-@router.websocket("/events")
-async def wallet_events(websocket: WebSocket, token: str = Query(...)) -> None:
+async def _session_from_auth_message(raw: str) -> dict[str, Any] | None:
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if data.get("type") != "auth":
+        return None
+    token = str(data.get("token", "")).strip()
+    if not token:
+        return None
     session = verify_session_token(token)
+    return session if session else None
+
+
+async def _authenticate_websocket(websocket: WebSocket) -> int | None:
+    await websocket.accept()
+
+    cookie_token = websocket.cookies.get(SESSION_COOKIE)
+    if cookie_token:
+        session = verify_session_token(cookie_token)
+        if session:
+            await websocket.send_json({"type": "auth_ok"})
+            return int(session["id"])
+
+    try:
+        raw = await asyncio.wait_for(
+            websocket.receive_text(), timeout=_AUTH_TIMEOUT_SECONDS
+        )
+    except TimeoutError:
+        await websocket.close(code=4401, reason="Auth timeout")
+        return None
+
+    session = await _session_from_auth_message(raw)
     if not session:
-        await websocket.close(code=4401)
+        await websocket.close(code=4401, reason="Auth failed")
+        return None
+
+    await websocket.send_json({"type": "auth_ok"})
+    return int(session["id"])
+
+
+@router.websocket("/events")
+async def wallet_events(websocket: WebSocket) -> None:
+    user_id = await _authenticate_websocket(websocket)
+    if user_id is None:
         return
 
-    user_id = int(session["id"])
-    await hub.connect(user_id, websocket)
+    hub.register(user_id, websocket)
     try:
         while True:
             await websocket.receive_text()

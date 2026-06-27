@@ -12,10 +12,14 @@ export function connectWalletEvents(): void {
 	const token = getToken();
 	if (!token || socket) return;
 
-	socket = new WebSocket(`${wsBase()}?token=${encodeURIComponent(token)}`);
+	socket = new WebSocket(wsBase());
+	socket.onopen = () => {
+		socket?.send(JSON.stringify({ type: 'auth', token }));
+	};
 	socket.onmessage = (event) => {
 		try {
-			const data = JSON.parse(event.data) as { event?: string };
+			const data = JSON.parse(event.data) as { type?: string; event?: string };
+			if (data.type === 'auth_ok') return;
 			if (data.event === 'wallet_synced' || data.event === 'tx_sent') {
 				bumpAppRefresh();
 			}

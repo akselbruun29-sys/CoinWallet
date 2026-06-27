@@ -40,7 +40,9 @@
   --accent-foreground: oklch(0.985 0 0);
   --border: oklch(0.274 0.006 286);
   --ring: oklch(0.552 0.016 286);
-  --radius: 0.5rem;
+  --radius: 0.625rem;
+  --glow-success: oklch(0.72 0.17 145 / 0.35);
+  --section-y: 4.5rem;
 }
 
 @layer base {
@@ -50,5 +52,105 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     min-height: 100dvh;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -30%, oklch(0.72 0.17 145 / 0.08), transparent 55%),
+      linear-gradient(to bottom, oklch(0.16 0.006 286), var(--background));
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: oklch(0.72 0.17 145 / 0.35);
+    color: var(--foreground);
+  }
+}
+
+@layer components {
+  .site-container {
+    @apply mx-auto w-full max-w-5xl px-6;
+  }
+  .site-section {
+    padding-block: var(--section-y);
+  }
+  .glass-card {
+    @apply rounded-xl border border-border/80 bg-card/70 backdrop-blur-sm;
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.03) inset,
+      0 8px 32px oklch(0 0 0 / 0.25);
+  }
+  .glass-card-hover {
+    @apply rounded-xl border border-border/80 bg-card/70 backdrop-blur-sm transition-all duration-300;
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.03) inset,
+      0 8px 32px oklch(0 0 0 / 0.25);
+  }
+  .glass-card-hover:hover {
+    @apply border-success/30;
+    box-shadow:
+      0 0 0 1px oklch(0.72 0.17 145 / 0.12) inset,
+      0 0 24px var(--glow-success),
+      0 12px 40px oklch(0 0 0 / 0.35);
+    transform: translateY(-2px);
+  }
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-8 text-sm font-semibold text-primary-foreground transition-all hover:opacity-95 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-card/80 px-8 text-sm font-semibold text-foreground backdrop-blur-sm transition-colors hover:border-success/40 hover:bg-accent;
+  }
+  .page-heading {
+    @apply text-3xl font-bold tracking-tight sm:text-4xl;
+  }
+  .page-lead {
+    @apply text-muted-foreground leading-relaxed;
+  }
+  .prose-page {
+    @apply space-y-8 text-sm leading-relaxed text-muted-foreground;
+  }
+  .prose-page h2 {
+    @apply mb-3 text-lg font-semibold text-foreground;
+  }
+  .mesh-hero {
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.72 0.17 145 / 0.18), transparent),
+      linear-gradient(oklch(0.72 0.17 145 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.72 0.17 145 / 0.04) 1px, transparent 1px);
+    background-size: auto, 48px 48px, 48px 48px;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-md bg-muted;
+  }
+  .rank-gold {
+    @apply text-amber-400;
+  }
+  .rank-silver {
+    @apply text-zinc-300;
+  }
+  .rank-bronze {
+    @apply text-amber-700;
+  }
+}
+
+@layer utilities {
+  .page-enter {
+    animation: page-in 0.35s ease-out both;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+  .glass-card-hover:hover {
+    transform: none;
   }
 }

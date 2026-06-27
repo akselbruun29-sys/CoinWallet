@@ -38,9 +38,15 @@ def _localhost_only_enabled() -> bool:
     return True
 
 
+def _strict_localhost_mode() -> bool:
+    if os.getenv("STRICT_SECRETS", "").lower() in ("true", "1", "yes"):
+        return True
+    return _localhost_only_enabled()
+
+
 def _host_is_local(host: str) -> bool:
     if not host:
-        return True
+        return False
     # Strip port: localhost:8002 → localhost
     name = host.split(":")[0].strip().lower()
     if name.startswith("[") and name.endswith("]"):
@@ -62,7 +68,12 @@ class LocalhostOnlyMiddleware(BaseHTTPMiddleware):
         if not _localhost_only_enabled():
             return await call_next(request)
 
-        host = request.headers.get("host", "")
+        host = request.headers.get("host", "").strip()
+        if _strict_localhost_mode() and not host:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Missing Host header"},
+            )
         if host and not _host_is_local(host):
             return JSONResponse(
                 status_code=403,

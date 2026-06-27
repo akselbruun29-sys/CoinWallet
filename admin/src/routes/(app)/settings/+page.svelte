@@ -304,7 +304,9 @@
 					</div>
 					<div class="flex items-center gap-2">
 						<Checkbox id="tor" bind:checked={torEnabled} />
-						<Label for="tor" class="font-normal">Enable Tor proxy</Label>
+						<Label for="tor" class="font-normal">
+							Route Bitcoin sync through Tor (bundled in desktop app)
+						</Label>
 					</div>
 					<div class="flex items-center gap-2">
 						<Checkbox id="mainnet" bind:checked={allowMainnet} />

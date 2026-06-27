@@ -2,6 +2,7 @@
   "version": "0.1.0",
   "released_at": "2026-06-27T15:56:42Z",
   "min_supported_version": "0.1.0",
+  "github_repo": "akselbruun29-sys/CoinWallet",
   "signer_fingerprint": null,
   "signing_keys_url": "/releases/signing-keys.example.json",
   "release_notes": "Windows NSIS installer. Run setup wizard to install CoinWallet.",

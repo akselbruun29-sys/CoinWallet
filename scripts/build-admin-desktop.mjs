@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const adminDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'admin');
 const env = { ...process.env, COINWALLET_DESKTOP: '1' };
+env.VITE_COINWALLET_DESKTOP = 'true';
 if (process.env.VITE_REMOTE_SERVICES_URL) {
   env.VITE_REMOTE_SERVICES_URL = process.env.VITE_REMOTE_SERVICES_URL;
 } else if (process.env.COINWALLET_REMOTE_SERVICES_URL) {

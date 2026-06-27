@@ -375,7 +375,7 @@ def export_wallet(
 def delete_wallet(
     wallet_id: int,
     request: Request,
-    user: AuthUser = Depends(get_current_user),
+    user: AuthUser = Depends(require_wallet_unlocked),
     db: WalletDatabase = Depends(get_db),
 ):
     _get_wallet_or_404(wallet_id, user, db)

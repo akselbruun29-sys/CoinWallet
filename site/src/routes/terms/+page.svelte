@@ -2,10 +2,10 @@
   <title>Terms — CoinWallet</title>
 </svelte:head>
 
-<main class="mx-auto max-w-3xl px-6 py-16 sm:py-20">
-  <h1 class="mb-8 text-3xl font-bold tracking-tight">Terms of Use</h1>
+<main class="site-section site-container max-w-3xl">
+  <h1 class="page-heading mb-8">Terms of Use</h1>
 
-  <div class="space-y-8 text-sm leading-relaxed text-muted-foreground">
+  <div class="prose-page">
     <section>
       <h2 class="mb-3 text-lg font-semibold text-foreground">Software provided as-is</h2>
       <p>

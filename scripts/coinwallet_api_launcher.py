@@ -44,6 +44,10 @@ def ensure_production_env(app_data: Path) -> Path:
         f"WALLET_DB_KEY={secrets.token_urlsafe(32)}",
         "WALLET_DB=wallet.db",
         "BITCOIN_NETWORK=testnet",
+        "TOR_ENABLED=true",
+        "HTTP_PROXY=socks5h://127.0.0.1:9050",
+        "HTTPS_PROXY=socks5h://127.0.0.1:9050",
+        "TOR_SOCKS_PROXY=socks5h://127.0.0.1:9050",
         "OPEN_REGISTRATION=true",
         "AUTO_APPROVE_USERS=true",
         "ADMIN_USERNAME=admin",
@@ -75,6 +79,14 @@ def main() -> None:
     os.environ.setdefault("COINWALLET_PRODUCTION", "true")
     os.environ.setdefault("LOCALHOST_ONLY", "true")
     os.environ["WALLET_DB"] = str(app_data / "wallet.db")
+
+    if os.environ.get("COINWALLET_TOR_MANAGED", "").lower() in ("true", "1", "yes"):
+        from src.database import WalletDatabase
+
+        db = WalletDatabase()
+        db.set_setting("tor_enabled", "true")
+        if not db.get_setting("network_wizard_complete"):
+            db.set_setting("network_wizard_complete", "false")
 
     host = os.environ.get("COINWALLET_API_HOST", "127.0.0.1")
     port = _select_port()

@@ -7,10 +7,9 @@
 | Field | Value |
 |-------|-------|
 | **Current phase** | 13 — Local-first (Wasabi-style) ✓ |
-| **Next task** | **14.4** — WebSocket auth off query string |
-| **Last completed** | 14.3 verify-detect-os.mjs UA samples |
-| **Loop mode** | Chain (5-minute ticks) |
-| **Last loop tick** | 2026-06-27T16:11 |
+| **Next task** | **14.8** — Per-network leaderboard opt-in in Settings |
+| **Last completed** | 14.7 Wallet delete requires unlock |
+| **Last loop tick** | 2026-06-27 |
 
 ### Loop log
 
@@ -54,6 +53,11 @@
 | 2026-06-27 | 14.1 ✓ | detectOS: windows nt / mac os / mobile-first; no darwin false positive |
 | 2026-06-27 | 14.2 ✓ | iPad desktop UA via MacIntel + maxTouchPoints; mobile hint, no mac highlight |
 | 2026-06-27 | 14.3 ✓ | verify-detect-os.mjs — 6 UA samples (Win, Mac, iPhone, iPad desktop, Electron, Linux) |
+| 2026-06-27 | 14.4 ✓ | WS auth via post-connect `{type:auth,token}`; cookie fallback; no query token |
+| 2026-06-27 | 14.5 ✓ | Reject missing/empty Host when LOCALHOST_ONLY or STRICT_SECRETS; verify script updated |
+| 2026-06-27 | 14.6 ✓ | README dual auth (Bearer + cookie); desktop CSP meta via vite plugin |
+| 2026-06-27 | 16.1–16.4 ✓ | Option A Tor bootstrap — sidecar, Esplora over SOCKS, /setup wizard |
+| 2026-06-27 | 14.7 ✓ | DELETE /api/wallets/{id} requires wallet unlock |
 
 ---
 
@@ -623,15 +627,15 @@ User says stop loop?
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 14.4 | WebSocket auth — move session token off query string (post-connect auth message or `Sec-WebSocket-Protocol`; cookie on localhost) | `api/events.py`, admin WS client |
-| 14.5 | Reject empty/missing `Host` when `LOCALHOST_ONLY` / `STRICT_SECRETS` enabled | `api/middleware.py` |
-| 14.6 | Document dual auth model (HttpOnly cookie + Bearer in `sessionStorage`); tighten admin CSP in production build | `README.md`, admin `vite.config` or headers |
+| 14.4 ✓ | WebSocket auth — move session token off query string (post-connect auth message or `Sec-WebSocket-Protocol`; cookie on localhost) | `api/events.py`, admin WS client |
+| 14.5 ✓ | Reject empty/missing `Host` when `LOCALHOST_ONLY` / `STRICT_SECRETS` enabled | `api/middleware.py` |
+| 14.6 ✓ | Document dual auth model (HttpOnly cookie + Bearer in `sessionStorage`); tighten admin CSP in production build | `README.md`, admin `vite.config` or headers |
 
 ### 14.3 Wallet & leaderboard behavior
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 14.7 | Require `require_wallet_unlocked` (or re-enter passphrase) for `DELETE /api/wallets/{id}` | `api/wallet.py` |
+| 14.7 ✓ | Require `require_wallet_unlocked` (or re-enter passphrase) for `DELETE /api/wallets/{id}` | `api/wallet.py` |
 | 14.8 | Leaderboard opt-in — accept explicit `network` in request body; align Settings UI with testnet/mainnet boards | `api/leaderboard.py`, settings + leaderboard pages |
 | 14.9 | Optional: do not `touch_unlock` on read-only GET routes (configurable `WALLET_TOUCH_ON_READ=false`) | `api/middleware.py`, Settings |
 
@@ -656,18 +660,34 @@ User says stop loop?
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 15.1 | Design tokens pass — typography scale, section spacing, shared `--glow-success`, card shadow utilities | `site/src/app.css` |
-| 15.2 | Logo mark + wordmark component (icon + CoinWallet split color) | `site/src/lib/components/BrandLogo.svelte` |
-| 15.3 | Header/footer upgrade — sticky blur nav, mobile hamburger menu, footer columns (Download, Legal, Links) | `SiteHeader.svelte`, `SiteFooter.svelte` |
-| 15.4 | Home hero — mesh/grid background, optional product mockup or wallet screenshot frame, stronger CTA pair | `site/src/routes/+page.svelte` |
-| 15.5 | Feature cards — Lucide-style inline SVG icons, hover lift + border glow | `+page.svelte` or `FeatureCard.svelte` |
-| 15.6 | Download page — polished platform cards, version badge, checksum copy button, detected-env tip styling | `download/+page.svelte` |
-| 15.7 | Leaderboard — rank medals for top 3, zebra rows, loading skeleton | `leaderboard/+page.svelte` |
-| 15.8 | Privacy / terms / install — consistent prose layout, table of contents on install guide | `privacy/`, `terms/`, `install/` |
-| 15.9 | Page transitions + reduced-motion respect (`prefers-reduced-motion`) | `+layout.svelte`, shared CSS |
-| 15.10 | SEO & social — OG/Twitter meta, theme-color, favicon set from app icon | `site/src/app.html`, `+page.svelte` head |
+| 15.1 ✓ | Design tokens pass — typography scale, section spacing, shared `--glow-success`, card shadow utilities | `site/src/app.css` |
+| 15.2 ✓ | Logo mark + wordmark component (icon + CoinWallet split color) | `site/src/lib/components/BrandLogo.svelte` |
+| 15.3 ✓ | Header/footer upgrade — sticky blur nav, mobile hamburger menu, footer columns (Download, Legal, Links) | `SiteHeader.svelte`, `SiteFooter.svelte` |
+| 15.4 ✓ | Home hero — mesh/grid background, optional product mockup or wallet screenshot frame, stronger CTA pair | `site/src/routes/+page.svelte` |
+| 15.5 ✓ | Feature cards — Lucide-style inline SVG icons, hover lift + border glow | `FeatureCard.svelte` |
+| 15.6 ✓ | Download page — polished platform cards, version badge, checksum copy button, detected-env tip styling | `download/+page.svelte` |
+| 15.7 ✓ | Leaderboard — rank medals for top 3, zebra rows, loading skeleton | `leaderboard/+page.svelte` |
+| 15.8 ✓ | Privacy / terms / install — consistent prose layout, table of contents on install guide | `privacy/`, `terms/`, `install/` |
+| 15.9 ✓ | Page transitions + reduced-motion respect (`prefers-reduced-motion`) | `+layout.svelte`, shared CSS |
+| 15.10 ✓ | SEO & social — OG/Twitter meta, theme-color, favicon set from app icon | `site/src/app.html`, `+page.svelte` head |
 | 15.11 | Lighthouse pass — fix contrast, tap targets, meta; document scores in `site/README.md` | manual audit + README note |
 
 **Constraints:** static adapter only; no client-side wallet logic on site; keep bundle lean (CSS + Svelte transitions, no Framer/Lottie unless user approves).
 
-*Last plan revision: 2026-06-27 — Phase 15 download website visual upgrade added.*
+---
+
+## 26. Phase 16 — Tor bootstrap (Option A) ✓
+
+**Goal:** Wasabi-style **private network on first launch** without a full local blockchain — bundled Tor, Esplora over SOCKS, first-run wizard.
+
+| ID | Task | Deliverable | Status |
+|----|------|-------------|--------|
+| 16.1 ✓ | Bundle/spawn Tor from Tauri; SOCKS `127.0.0.1:9050` | `tor_sidecar.rs`, `setup-tor.ps1`, `externalBin` | ✓ |
+| 16.2 ✓ | Wire `tor_enabled` + env proxy → Esplora backend | `src/wallet/tor.py`, `backend.py` | ✓ |
+| 16.3 ✓ | First-run wizard UI (Tor status → sign in) | `admin/.../setup/+page.svelte` | ✓ |
+| 16.4 ✓ | Default Tor on for production desktop sidecar | `coinwallet_api_launcher.py`, `lib.rs` | ✓ |
+| 16.5 — | Optional: download Bitcoin Core testnet (Option B) | deferred | — |
+| 16.6 — | Local Core backend without Esplora | deferred | — |
+| 16.7 ✓ | Document Tor + light client in README / privacy | `README.md` | ✓ |
+
+*Last plan revision: 2026-06-27 — Phase 16 Option A (Tor bootstrap) implemented.*

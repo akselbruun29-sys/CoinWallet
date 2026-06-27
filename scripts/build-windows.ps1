@@ -18,6 +18,13 @@ Write-Host "Pre-release security checks..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "..\venv\Scripts\python.exe") (Join-Path $PSScriptRoot "verify_release_security.py")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "Staging Tor Expert Bundle (optional — requires network)..." -ForegroundColor Cyan
+try {
+    & (Join-Path $PSScriptRoot "setup-tor.ps1")
+} catch {
+    Write-Warning "Tor staging skipped: $_"
+}
+
 Write-Host "Building frozen API sidecar..." -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "build-api-sidecar.ps1")
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -26,6 +33,8 @@ Write-Host "Building admin UI (desktop)..." -ForegroundColor Cyan
 npm run build:desktop --prefix admin
 
 Write-Host "Building Tauri bundle..." -ForegroundColor Cyan
+node (Join-Path $PSScriptRoot "patch-tauri-tor-resources.mjs")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 cargo tauri build
 
 $nsisDir = Join-Path $PWD "src-tauri\target\release\bundle\nsis"
