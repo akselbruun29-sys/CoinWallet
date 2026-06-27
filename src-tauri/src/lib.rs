@@ -271,13 +271,11 @@ pub fn run() {
         .manage(ApiSidecar(Mutex::new(None)))
         .manage(TorSidecar(Mutex::new(None)))
         .setup(move |app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(log::LevelFilter::Info)
+                    .build(),
+            )?;
 
             let tor_child = start_tor_sidecar(app.handle(), &app_data);
             let tor_active = tor_child.is_some();
