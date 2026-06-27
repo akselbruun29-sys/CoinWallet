@@ -13,7 +13,7 @@ $marker = Join-Path $stageRoot ".version"
 if ((Test-Path (Join-Path $stageRoot "tor.exe")) -and (Test-Path $marker)) {
     $existing = Get-Content $marker -Raw
     if ($existing.Trim() -eq $torVersion) {
-        Write-Host "Tor $torVersion already staged — skipping download" -ForegroundColor Green
+        Write-Host "Tor $torVersion already staged - skipping download" -ForegroundColor Green
         exit 0
     }
 }
@@ -42,4 +42,4 @@ Copy-Item -Path (Join-Path $torFolder "*") -Destination $stageRoot -Recurse -For
 Copy-Item $extractedTor.FullName (Join-Path $stageRoot "tor.exe") -Force
 Set-Content -Path $marker -Value $torVersion -NoNewline
 
-Write-Host "Staged Tor to $stageRoot (run setup-tor.ps1 before release builds)" -ForegroundColor Green
+Write-Host "Staged Tor to $stageRoot" -ForegroundColor Green

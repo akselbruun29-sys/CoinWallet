@@ -88,8 +88,9 @@ def push_leaderboard_balance(db: WalletDatabase, user_id: int, network: str) -> 
 
 
 class OptInRequest(BaseModel):
-    display_name: str = Field(..., min_length=2, max_length=32)
+    display_name: str = Field(default="", max_length=32)
     opted_in: bool
+    network: str = Field(..., pattern="^(testnet|signet|regtest|mainnet)$")
 
 
 class UpdateRequest(BaseModel):
@@ -159,8 +160,7 @@ def leaderboard_opt_in(
     user: AuthUser = Depends(get_current_user),
     db: WalletDatabase = Depends(get_db),
 ):
-    settings = db.get_system_settings()
-    network = settings.get("network", "testnet")
+    network = body.network
 
     if body.opted_in:
         try:

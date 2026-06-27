@@ -14,6 +14,7 @@ from api.auth import (
     touch_session_token,
     verify_session_token,
 )
+from src.database import WalletDatabase
 from src.wallet.vault import touch_unlock
 
 _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]", "::1"})
@@ -207,11 +208,29 @@ def _user_id_from_request(request: Request) -> Optional[int]:
     return int(session["id"])
 
 
+def _wallet_touch_on_read() -> bool:
+    raw = os.getenv("WALLET_TOUCH_ON_READ", "true").strip().lower()
+    try:
+        db = WalletDatabase()
+        stored = db.get_setting("wallet_touch_on_read", "").strip().lower()
+        if stored:
+            raw = stored
+    except Exception:
+        pass
+    return raw in ("true", "1", "yes")
+
+
+def _should_touch_wallet_unlock(request: Request) -> bool:
+    if request.method != "GET":
+        return True
+    return _wallet_touch_on_read()
+
+
 class WalletActivityMiddleware(BaseHTTPMiddleware):
     """Extend wallet unlock idle timer on authenticated API activity."""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         user_id = _user_id_from_request(request)
-        if user_id is not None:
+        if user_id is not None and _should_touch_wallet_unlock(request):
             touch_unlock(user_id)
         return await call_next(request)

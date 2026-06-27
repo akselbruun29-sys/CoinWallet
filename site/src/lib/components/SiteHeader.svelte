@@ -24,19 +24,16 @@
 
     <nav class="hidden items-center gap-1 md:flex" aria-label="Main">
       {#each links as link}
-        <a
-          href={link.href}
-          class="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
+        <a href={link.href} class="site-nav-link">
           {link.label}
         </a>
       {/each}
-      <a href="/download" class="btn-primary ml-2 !min-h-9 !px-4 !text-xs">Get app</a>
+      <a href="/download" class="btn-primary ml-2 !px-4 !text-xs">Get app</a>
     </nav>
 
     <button
       type="button"
-      class="inline-flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground md:hidden"
+      class="inline-flex size-11 items-center justify-center rounded-lg border border-border text-muted-foreground md:hidden"
       aria-expanded={mobileOpen}
       aria-controls="mobile-nav"
       aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
@@ -65,7 +62,7 @@
           <li>
             <a
               href={link.href}
-              class="block rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              class="site-nav-link block w-full font-medium"
               onclick={closeMobile}
             >
               {link.label}

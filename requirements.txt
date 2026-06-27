@@ -9,3 +9,5 @@ embit>=0.8.0
 mnemonic>=0.21
 monero>=1.1.1
 pytest>=8.0.0
+httpx>=0.28.0
+httpx2>=2.5.0

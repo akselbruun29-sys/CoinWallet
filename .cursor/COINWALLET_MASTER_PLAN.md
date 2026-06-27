@@ -6,10 +6,11 @@
 
 | Field | Value |
 |-------|-------|
-| **Current phase** | 13 — Local-first (Wasabi-style) ✓ |
-| **Next task** | **14.8** — Per-network leaderboard opt-in in Settings |
-| **Last completed** | 14.7 Wallet delete requires unlock |
-| **Last loop tick** | 2026-06-27 |
+| **Current phase** | 16 — Tor bootstrap (Option A) ✓ |
+| **Next task** | — **Loop stopped** (user request) |
+| **Last completed** | 15.11 Lighthouse a11y/tap-target pass + README audit docs |
+| **Last loop tick** | 2026-06-27 (tick 17 — stopped) |
+| **Loop mode** | Off |
 
 ### Loop log
 
@@ -58,6 +59,15 @@
 | 2026-06-27 | 14.6 ✓ | README dual auth (Bearer + cookie); desktop CSP meta via vite plugin |
 | 2026-06-27 | 16.1–16.4 ✓ | Option A Tor bootstrap — sidecar, Esplora over SOCKS, /setup wizard |
 | 2026-06-27 | 14.7 ✓ | DELETE /api/wallets/{id} requires wallet unlock |
+| 2026-06-27 | 14.8 ✓ | Leaderboard opt-in per network (testnet/mainnet); explicit `network` in API body |
+| 2026-06-27 | 14.9 ✓ | WALLET_TOUCH_ON_READ — skip touch_unlock on GET when false; admin Settings toggle |
+| 2026-06-27 | 14.10 ✓ | pytest test_wallet_secrets — list/get wallet never expose encrypted_seed |
+| 2026-06-27 | 14.11 ✓ | pytest test_leaderboard — display-name validation + balance update rejection |
+| 2026-06-27 | 14.12 ✓ | pytest test_mainnet_gate — send/swap blocked without ack + legacy v1 |
+| 2026-06-27 | 14.13 ✓ | pytest test_swap — stale/missing quote rejected on execute; **Phase 14 complete** |
+| 2026-06-27 | 15.11 ✓ | Site a11y — contrast, 44px tap targets, skip link; Lighthouse docs in site/README |
+| 2026-06-27 | loop tick 17 | Planned Phases 14–15 queue empty — loop idle; operator items remain |
+| 2026-06-27 | — | **Loop stopped** by user (`STOP LOOP`); PID 2004 terminated |
 
 ---
 
@@ -465,7 +475,15 @@ Order in `app-sidebar.svelte`:
 
 ## 19. Current pointer
 
-**Next task:** **12.5** — First signed release (operator: run checklist, build, sign, `finalize-release`, deploy site).
+**Loop:** **Stopped** (2026-06-27). Phases 14–15 complete; no further automatic ticks.
+
+**Operator backlog (manual):**
+
+1. `gh auth login` + `.\scripts\publish-github-release.ps1 -Version 0.1.0` — Windows installer on GitHub Releases
+2. `.\scripts\setup-tor.ps1` before release build — bundle Tor in installer
+3. Lighthouse on `site/` preview — fill score table in `site/README.md`
+
+**Deferred / future:** Phase 16.5–16.6 (local Bitcoin Core), Haveno live quotes, mobile Capacitor.
 
 Update **Loop status** at the top of this file after every tick.
 
@@ -636,17 +654,17 @@ User says stop loop?
 | ID | Task | Deliverable |
 |----|------|-------------|
 | 14.7 ✓ | Require `require_wallet_unlocked` (or re-enter passphrase) for `DELETE /api/wallets/{id}` | `api/wallet.py` |
-| 14.8 | Leaderboard opt-in — accept explicit `network` in request body; align Settings UI with testnet/mainnet boards | `api/leaderboard.py`, settings + leaderboard pages |
-| 14.9 | Optional: do not `touch_unlock` on read-only GET routes (configurable `WALLET_TOUCH_ON_READ=false`) | `api/middleware.py`, Settings |
+| 14.8 ✓ | Leaderboard opt-in — accept explicit `network` in request body; align Settings UI with testnet/mainnet boards | `api/leaderboard.py`, settings + leaderboard pages |
+| 14.9 ✓ | Optional: do not `touch_unlock` on read-only GET routes (configurable `WALLET_TOUCH_ON_READ=false`) | `api/middleware.py`, Settings |
 
 ### 14.4 Test coverage
 
 | ID | Task | Deliverable |
 |----|------|-------------|
-| 14.10 | pytest: `list_wallets` / `get_wallet` never return `encrypted_seed` | `tests/test_wallet_secrets.py` |
-| 14.11 | pytest: leaderboard display-name validation + balance update rejection | `tests/test_leaderboard.py` |
-| 14.12 | pytest: mainnet gate blocks send/swap without v2 + ack | `tests/test_mainnet_gate.py` |
-| 14.13 | pytest: swap quote expiry rejected on stale execute | `tests/test_swap.py` |
+| 14.10 ✓ | pytest: `list_wallets` / `get_wallet` never return `encrypted_seed` | `tests/test_wallet_secrets.py` |
+| 14.11 ✓ | pytest: leaderboard display-name validation + balance update rejection | `tests/test_leaderboard.py` |
+| 14.12 ✓ | pytest: mainnet gate blocks send/swap without v2 + ack | `tests/test_mainnet_gate.py` |
+| 14.13 ✓ | pytest: swap quote expiry rejected on stale execute | `tests/test_swap.py` |
 
 **Out of scope:** full mobile Capacitor hardening (11.22–11.24), paid pentest, forcing removal of Bearer tokens (desktop SPA depends on them today).
 
@@ -670,7 +688,7 @@ User says stop loop?
 | 15.8 ✓ | Privacy / terms / install — consistent prose layout, table of contents on install guide | `privacy/`, `terms/`, `install/` |
 | 15.9 ✓ | Page transitions + reduced-motion respect (`prefers-reduced-motion`) | `+layout.svelte`, shared CSS |
 | 15.10 ✓ | SEO & social — OG/Twitter meta, theme-color, favicon set from app icon | `site/src/app.html`, `+page.svelte` head |
-| 15.11 | Lighthouse pass — fix contrast, tap targets, meta; document scores in `site/README.md` | manual audit + README note |
+| 15.11 ✓ | Lighthouse pass — fix contrast, tap targets, meta; document scores in `site/README.md` | manual audit + README note |
 
 **Constraints:** static adapter only; no client-side wallet logic on site; keep bundle lean (CSS + Svelte transitions, no Framer/Lottie unless user approves).
 
@@ -690,4 +708,4 @@ User says stop loop?
 | 16.6 — | Local Core backend without Esplora | deferred | — |
 | 16.7 ✓ | Document Tor + light client in README / privacy | `README.md` | ✓ |
 
-*Last plan revision: 2026-06-27 — Phase 16 Option A (Tor bootstrap) implemented.*
+*Last plan revision: 2026-06-27 — Phases 14–15 complete; Phase 16 Tor bootstrap; loop caught up on remediation + site polish.*

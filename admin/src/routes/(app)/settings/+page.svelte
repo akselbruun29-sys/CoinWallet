@@ -27,6 +27,7 @@
 	let mainnetEnableAck = $state(false);
 	let xmrWalletRpcUri = $state('');
 	let walletUnlockTtl = $state('900');
+	let walletTouchOnRead = $state(true);
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -35,8 +36,9 @@
 	let passwordError = $state('');
 	let passwordSaved = $state(false);
 
-	let leaderboardOptIn = $state(false);
 	let leaderboardName = $state('');
+	let leaderboardOptInTestnet = $state(false);
+	let leaderboardOptInMainnet = $state(false);
 	let leaderboardSaving = $state(false);
 	let leaderboardError = $state('');
 	let leaderboardSaved = $state(false);
@@ -51,6 +53,7 @@
 		allowMainnet = s.allow_mainnet === 'true';
 		xmrWalletRpcUri = s.xmr_wallet_rpc_uri ?? '';
 		walletUnlockTtl = s.wallet_unlock_ttl ?? '900';
+		walletTouchOnRead = s.wallet_touch_on_read !== 'false';
 	}
 
 	async function load() {
@@ -58,11 +61,17 @@
 		user = userData;
 		applySettings(settingsData);
 		try {
-			const lb = await api.leaderboardMe(settingsData.network ?? 'testnet');
-			leaderboardOptIn = lb.opted_in;
-			leaderboardName = lb.display_name ?? userData.username ?? '';
+			const [testnetLb, mainnetLb] = await Promise.all([
+				api.leaderboardMe('testnet'),
+				api.leaderboardMe('mainnet')
+			]);
+			leaderboardOptInTestnet = testnetLb.opted_in;
+			leaderboardOptInMainnet = mainnetLb.opted_in;
+			leaderboardName =
+				testnetLb.display_name ?? mainnetLb.display_name ?? userData.username ?? '';
 		} catch {
-			leaderboardOptIn = false;
+			leaderboardOptInTestnet = false;
+			leaderboardOptInMainnet = false;
 			leaderboardName = userData.username ?? '';
 		}
 		try {
@@ -90,7 +99,8 @@
 					allow_mainnet: allowMainnet,
 					mainnet_enable_acknowledged: allowMainnet ? mainnetEnableAck : undefined,
 					xmr_wallet_rpc_uri: xmrWalletRpcUri,
-					wallet_unlock_ttl: parseInt(walletUnlockTtl, 10)
+					wallet_unlock_ttl: parseInt(walletUnlockTtl, 10),
+					wallet_touch_on_read: walletTouchOnRead
 				})
 			);
 			saved = true;
@@ -135,13 +145,18 @@
 		leaderboardSaving = true;
 		leaderboardError = '';
 		leaderboardSaved = false;
-		if (leaderboardOptIn && leaderboardName.trim().length < 2) {
+		const anyOptIn = leaderboardOptInTestnet || leaderboardOptInMainnet;
+		if (anyOptIn && leaderboardName.trim().length < 2) {
 			leaderboardError = 'Display name must be at least 2 characters';
 			leaderboardSaving = false;
 			return;
 		}
 		try {
-			await api.leaderboardOptIn(leaderboardName.trim(), leaderboardOptIn);
+			const name = leaderboardName.trim();
+			await Promise.all([
+				api.leaderboardOptIn(name, leaderboardOptInTestnet, 'testnet'),
+				api.leaderboardOptIn(name, leaderboardOptInMainnet, 'mainnet')
+			]);
 			leaderboardSaved = true;
 		} catch (err) {
 			leaderboardError = err instanceof Error ? err.message : 'Failed to update leaderboard';
@@ -196,14 +211,21 @@
 		<Card.Header>
 			<Card.Title>Leaderboard</Card.Title>
 			<Card.Description>
-				Opt in to appear on the public leaderboard. Only your display name and total balance are shared.
+				Opt in per board (testnet and mainnet are separate). Only your display name and total balance
+				are shared. You are hidden by default.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<form class="space-y-4" onsubmit={saveLeaderboard}>
-				<div class="flex items-center gap-2">
-					<Checkbox id="lb-opt-in" bind:checked={leaderboardOptIn} />
-					<Label for="lb-opt-in" class="font-normal">Show me on the leaderboard</Label>
+				<div class="space-y-3">
+					<div class="flex items-center gap-2">
+						<Checkbox id="lb-opt-in-testnet" bind:checked={leaderboardOptInTestnet} />
+						<Label for="lb-opt-in-testnet" class="font-normal">Show me on the testnet board</Label>
+					</div>
+					<div class="flex items-center gap-2">
+						<Checkbox id="lb-opt-in-mainnet" bind:checked={leaderboardOptInMainnet} />
+						<Label for="lb-opt-in-mainnet" class="font-normal">Show me on the mainnet board</Label>
+					</div>
 				</div>
 				<div class="space-y-2">
 					<Label for="lb-name">Display name</Label>
@@ -211,10 +233,13 @@
 						id="lb-name"
 						bind:value={leaderboardName}
 						maxlength={32}
-						disabled={!leaderboardOptIn}
-						required={leaderboardOptIn}
+						disabled={!leaderboardOptInTestnet && !leaderboardOptInMainnet}
+						required={leaderboardOptInTestnet || leaderboardOptInMainnet}
 					/>
 				</div>
+				{#if !leaderboardOptInTestnet && !leaderboardOptInMainnet}
+					<p class="text-sm text-muted-foreground">You are hidden from all public leaderboards.</p>
+				{/if}
 				{#if leaderboardError}
 					<p class="text-sm text-destructive">{leaderboardError}</p>
 				{/if}
@@ -302,6 +327,16 @@
 							Lock the wallet after this many seconds without API activity (60–86400). Default 900 (15 min).
 						</p>
 					</div>
+					<div class="flex items-center gap-2">
+						<Checkbox id="touch-on-read" bind:checked={walletTouchOnRead} />
+						<Label for="touch-on-read" class="font-normal">
+							Extend unlock timer on read-only requests (GET)
+						</Label>
+					</div>
+					<p class="text-xs text-muted-foreground">
+						When off, only writes (sync, send, etc.) reset the auto-lock timer — viewing balances will
+						not keep the wallet unlocked.
+					</p>
 					<div class="flex items-center gap-2">
 						<Checkbox id="tor" bind:checked={torEnabled} />
 						<Label for="tor" class="font-normal">

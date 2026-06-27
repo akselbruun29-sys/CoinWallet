@@ -12,7 +12,53 @@ npm run dev
 
 Open http://localhost:5174
 
-Visual design follows Phase 15: zinc dark theme, green success accents, glass cards, sticky nav with mobile menu. Run Lighthouse in Chrome DevTools after `npm run build && npm run preview` and record scores in this README when auditing (task 15.11).
+## Lighthouse audit (Phase 15.11)
+
+Audit the **production build** (not dev — Vite HMR skews performance scores):
+
+```bash
+cd site
+npm run build
+npm run preview
+```
+
+In Chrome DevTools → **Lighthouse** (mobile + desktop), run against:
+
+| Page | Notes |
+|------|--------|
+| `/` | Home hero, feature cards, CTAs |
+| `/download` | Platform cards, checksum copy buttons |
+| `/leaderboard` | Table semantics, network tabs |
+
+Optional CLI (requires [Chrome](https://www.google.com/chrome/) installed):
+
+```bash
+npx lighthouse http://localhost:4173/ --only-categories=performance,accessibility,best-practices,seo --view
+```
+
+### Target scores
+
+| Category | Target |
+|----------|--------|
+| Accessibility | ≥ 95 |
+| Best practices | ≥ 95 |
+| SEO | ≥ 95 |
+| Performance | ≥ 85 (static marketing site; varies by network) |
+
+### Fixes applied (2026-06-27)
+
+- **Contrast** — `--muted-foreground` lightened for WCAG AA body text on zinc background
+- **Tap targets** — nav, footer, and primary buttons use `min-h-11` (44px) touch areas
+- **Keyboard** — skip link to `#main-content`; focus rings on header logo
+- **Meta** — `color-scheme: dark`, `theme-color`, OG/Twitter tags (15.10)
+
+Record your local scores below after running Lighthouse on preview:
+
+| Page | Perf | A11y | BP | SEO | Date |
+|------|------|------|-----|-----|------|
+| `/` | — | — | — | — | |
+| `/download` | — | — | — | — | |
+| `/leaderboard` | — | — | — | — | |
 
 ## Production build
 

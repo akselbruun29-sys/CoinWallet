@@ -4,15 +4,19 @@
 
 <br />
 
-`testnet-first` · `BIP84` · `per-user encryption` · `mobile-ready`
+`testnet-first` · `BIP84` · `BTC + XMR` · `desktop` · `non-custodial`
 
 <br />
 
-Cross-platform Bitcoin wallet for **Windows** and **Mac** — non-custodial, privacy-focused, with an on-device **Advisor AI** tab for guidance (no trading features).
+Cross-platform Bitcoin wallet for **Windows** and **Mac** — non-custodial, privacy-focused, with optional Monero (XMR), user-initiated BTC↔XMR swap, and on-device **Advisor AI** (no trading features).
 
 <br />
 
-[Quick start](#quick-start) · [Security model](#security-model) · [App pages](#app-pages) · [AI context](#ai-context)
+**Download:** [coinwallet.pages.dev/download](https://coinwallet.pages.dev/download) · [GitHub Releases](https://github.com/akselbruun29-sys/CoinWallet/releases)
+
+<br />
+
+[Quick start](#quick-start) · [Download](#download-for-users) · [Security model](#security-model) · [App pages](#app-pages) · [AI context](#ai-context)
 
 </div>
 
@@ -24,26 +28,39 @@ See **[.cursor/COINWALLET_MASTER_PLAN.md](./.cursor/COINWALLET_MASTER_PLAN.md)**
 
 | | |
 |---|---|
-| **Wallets** | BIP84 native segwit — create, import, sync via Esplora |
+| **Wallets** | BIP84 native segwit (BTC) + Monero (XMR) — create, import, sync |
 | **Spend** | Fee preview, PSBT signing, broadcast |
+| **Swap** | User-initiated BTC↔XMR — quote, review, confirm (not a trading bot) |
 | **Privacy** | Coin control, UTXO labels, privacy score |
-| **Security** | Your passphrase encrypts mnemonics — admins can't spend your coins |
-| **Multi-user** | Per-user isolation, admin approval, audit log |
-| **Mobile** | Bottom nav, touch targets, responsive tables |
+| **Security** | Passphrase-encrypted mnemonics, auto-lock, optional DB sealing |
+| **Leaderboard** | Opt-in public ranking — display name + balance only |
+| **Distribution** | Direct downloads via [website](https://coinwallet.pages.dev) + [GitHub Releases](https://github.com/akselbruun29-sys/CoinWallet/releases) — no app stores |
 
 ```text
   ┌─────────────┐     unlock      ┌──────────────┐     Esplora     ┌──────────┐
   │  SvelteKit  │ ◄──────────────►│  FastAPI     │ ◄──────────────►│ testnet  │
-  │  UI :5173   │   wallet keys   │  API :8002   │   sync / send   │  chain   │
-  └─────────────┘                 └──────────────┘                 └──────────┘
-         │                               │
+  │  admin UI   │   wallet keys   │  sidecar     │   sync / send   │  chain   │
+  └─────────────┘                 │ 127.0.0.1    │                 └──────────┘
+         │                        └──────────────┘
          │         encrypted seeds       │
          └──────────────────────────────►│ SQLite (wallet.db)
 ```
 
 ---
 
-## Quick start
+## Download (for users)
+
+| | |
+|---|---|
+| **Website** | https://coinwallet.pages.dev/download — OS detect, checksums, install guides |
+| **GitHub Releases** | https://github.com/akselbruun29-sys/CoinWallet/releases — installers (Windows `.exe` hosted here when over Cloudflare size limit) |
+| **Verify** | Compare SHA-256 on the download page before installing |
+
+Windows **v0.1.0** is available. macOS builds are not published yet (`available: false` in `releases/releases.json`).
+
+---
+
+## Quick start (developers)
 
 ### 1 — Install
 
@@ -165,21 +182,29 @@ python scripts/verify_release_security.py
 | `APPLE_SIGNING_IDENTITY`, `APPLE_NOTARY_*` | macOS codesign + notarization |
 | `RELEASE_SIGNER_FINGERPRINT` / `_WINDOWS` / `_MACOS` | Manifest publisher thumbprints |
 
-**Publish (Cloudflare — free, no API token required for first setup):**
+**Publish site (Cloudflare Pages):**
 
 ```powershell
-cd C:\Users\aksel\Documents\GitHub\trading-bot
-.\scripts\setup-cloudflare.ps1
+.\scripts\setup-cloudflare.ps1   # one-time wrangler login
+.\scripts\deploy-site.ps1 -SkipVerify   # use -SkipVerify when Windows .exe is on GitHub only (>25 MiB)
 ```
 
-Or, after `npx wrangler login` in `site/`:
+Or after `npx wrangler login` in `site/`:
 
 ```powershell
 $env:CLOUDFLARE_API_TOKEN = '<token>'   # optional if already logged in via wrangler
-.\scripts\deploy-site.ps1
+.\scripts\deploy-site.ps1 -SkipVerify
 ```
 
-Or trigger GitHub Actions **Release desktop** with `mark_available` enabled (builds, updates manifest, deploys when Cloudflare secrets are configured). Pushing `releases.json` alone updates the manifest on CI but **not** gitignored binaries — use `deploy-site` after a local build.
+**Publish installer (GitHub Releases):**
+
+```powershell
+.\scripts\publish-github-release.ps1 -Version 0.1.0
+```
+
+Large Windows installers are hosted on GitHub Releases; `releases.json` points download buttons there. The marketing site stays on Cloudflare.
+
+Or trigger GitHub Actions **Release desktop** with `mark_available` enabled (builds, updates manifest, deploys when Cloudflare secrets are configured). Pushing `releases.json` alone updates the manifest on CI but **not** gitignored binaries — run `deploy-site` after a local build.
 
 Production sidecar template: [`.env.production.desktop.example`](.env.production.desktop.example). Set `STRICT_SECRETS`, `WALLET_DB_KEY`, and strong secrets before distributing. With `WALLET_DB_KEY`, the API seals `wallet.db` → `wallet.db.cwenc` on graceful shutdown.
 
@@ -293,17 +318,18 @@ On the same Wi‑Fi, open `http://<your-pc-ip>:5173`.
 |------|----------------|
 | **Dashboard** | Balance, sync status, quick actions |
 | **Wallets** | Create, import, select active wallet |
-| **Receive** | Fresh BIP84 address + QR |
+| **Receive** | BIP84 address + QR (BTC); subaddresses (XMR) |
 | **Send** | Fee preview, broadcast |
+| **Swap** | BTC↔XMR quote, review, history |
 | **Coin Control** | Freeze UTXOs, add labels |
 | **Transactions** | History after sync |
 | **Privacy** | Privacy score, UTXO breakdown |
+| **Advisor AI** | Rule-based tips — balance, fees, security, FAQ (no trading) |
+| **Leaderboard** | Opt-in ranking by wallet balance |
 | **Security** | Passphrase, lock/unlock, legacy migration |
-| **Settings** | Account, password, network (admin) |
+| **Settings** | Account, password, network, leaderboard opt-in |
 | **Admin** | Users, approval, audit *(admin only)* |
 | **Logs** | Server logs *(admin only)* |
-| **Swap** | Phase 10 — BTC↔XMR (user-initiated, quote-and-confirm) |
-| **Leaderboard** | Phase 4 — opt-in ranking by wallet balance |
 
 ---
 
@@ -338,18 +364,22 @@ Then start again.
 
 ### Project identity
 
-**CoinWallet** — cross-platform non-custodial Bitcoin wallet (testnet first). Not a trading bot — repo folder name is legacy.
+**CoinWallet** — cross-platform non-custodial Bitcoin + Monero wallet (testnet first). Not a trading bot — repo folder name is legacy.
+
+**Public links:** [Download site](https://coinwallet.pages.dev) · [GitHub Releases](https://github.com/akselbruun29-sys/CoinWallet/releases) · Repo `akselbruun29-sys/CoinWallet`
 
 ### Architecture
 
 ```
 CoinWallet/
-├── api/              # FastAPI auth, wallet, admin, security, events
-├── admin/            # SvelteKit 5 UI (shared across platforms)
-├── site/             # Download website (planned)
-├── src/              # database, wallet engine, config
-├── scripts/          # validate, backup, seed_admin
-├── deploy/           # Caddyfile
+├── api/              # FastAPI — local sidecar + optional cloud_app (leaderboard)
+├── admin/            # SvelteKit 5 wallet UI (Tauri webview)
+├── site/             # Public download website (Cloudflare Pages)
+├── src-tauri/        # Tauri 2 desktop shell
+├── src/wallet/       # BTC engine, XMR, swap, privacy
+├── releases/         # releases.json manifest (+ gitignored binaries)
+├── cloud/            # Cloudflare Workers / D1 (leaderboard)
+├── scripts/          # build, deploy, verify, release
 └── docs/             # TESTNET_CHECKLIST.md
 ```
 
@@ -391,6 +421,7 @@ CoinWallet/
 | `STRICT_SECRETS` | Fail startup on weak secrets (production) |
 | `WALLET_DB_KEY` | Seal `wallet.db` as `wallet.db.cwenc` on API shutdown |
 | `SECURE_COOKIES` | HTTPS-only cookies (production) |
+| `COINWALLET_REMOTE_SERVICES_URL` | Opt-in leaderboard sync to cloud (display name + balance only) |
 
 ### Phase status
 
@@ -404,7 +435,10 @@ CoinWallet/
 | **9** | Web release polish | ✓ |
 | **10** | BTC + XMR + swap | ✓ |
 | **11** | Security hardening | ✓ |
-| **12** | Release readiness | in progress |
+| **12** | Release readiness | ✓ |
+| **13** | Local-first / cloud leaderboard | ✓ |
+| **14** | Code review remediation | in progress (14.9+) |
+| **15** | Download site visual upgrade | ~done (Lighthouse audit open) |
 
 Full details in [`.cursor/COINWALLET_MASTER_PLAN.md`](.cursor/COINWALLET_MASTER_PLAN.md).
 

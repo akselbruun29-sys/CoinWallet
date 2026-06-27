@@ -1080,6 +1080,7 @@ class WalletDatabase:
             "allow_mainnet": os.getenv("ALLOW_MAINNET", "false"),
             "backend_type": os.getenv("BITCOIN_BACKEND_TYPE", "esplora"),
             "wallet_unlock_ttl": os.getenv("WALLET_UNLOCK_TTL", "900"),
+            "wallet_touch_on_read": os.getenv("WALLET_TOUCH_ON_READ", "true"),
         }
         with self.get_connection() as conn:
             rows = conn.execute("SELECT key, value FROM system_settings").fetchall()

@@ -34,6 +34,7 @@ class UpdateSettingsRequest(BaseModel):
     mainnet_enable_acknowledged: Optional[bool] = None
     xmr_wallet_rpc_uri: Optional[str] = None
     wallet_unlock_ttl: Optional[int] = Field(default=None, ge=60, le=86_400)
+    wallet_touch_on_read: Optional[bool] = None
 
 
 @router.get("/users")
@@ -197,6 +198,11 @@ def update_settings(
     if body.wallet_unlock_ttl is not None:
         configure_unlock_ttl(body.wallet_unlock_ttl)
         db.set_setting("wallet_unlock_ttl", str(body.wallet_unlock_ttl))
+    if body.wallet_touch_on_read is not None:
+        db.set_setting(
+            "wallet_touch_on_read",
+            "true" if body.wallet_touch_on_read else "false",
+        )
 
     db.add_audit("SETTINGS_UPDATED", user_id=admin.id, details="system settings changed")
     return db.get_system_settings()

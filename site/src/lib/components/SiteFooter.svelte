@@ -16,14 +16,14 @@
     <div>
       <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product</p>
       <ul class="space-y-2 text-sm">
-        <li><a href="/download" class="text-muted-foreground hover:text-success">Download</a></li>
-        <li><a href="/install" class="text-muted-foreground hover:text-success">Install guide</a></li>
-        <li><a href="/leaderboard" class="text-muted-foreground hover:text-success">Leaderboard</a></li>
+        <li><a href="/download" class="site-footer-link">Download</a></li>
+        <li><a href="/install" class="site-footer-link">Install guide</a></li>
+        <li><a href="/leaderboard" class="site-footer-link">Leaderboard</a></li>
         {#if githubReleasePage}
           <li>
             <a
               href={githubReleasePage}
-              class="text-muted-foreground hover:text-success"
+              class="site-footer-link"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -35,7 +35,7 @@
           <li>
             <a
               href={githubRepoUrl(githubRepo)}
-              class="text-muted-foreground hover:text-success"
+              class="site-footer-link"
               rel="noopener noreferrer"
               target="_blank"
             >
@@ -48,8 +48,8 @@
     <div>
       <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Legal</p>
       <ul class="space-y-2 text-sm">
-        <li><a href="/privacy" class="text-muted-foreground hover:text-success">Privacy</a></li>
-        <li><a href="/terms" class="text-muted-foreground hover:text-success">Terms</a></li>
+        <li><a href="/privacy" class="site-footer-link">Privacy</a></li>
+        <li><a href="/terms" class="site-footer-link">Terms</a></li>
       </ul>
     </div>
     <div>

@@ -554,6 +554,7 @@ export const api = {
     mainnet_enable_acknowledged?: boolean;
     xmr_wallet_rpc_uri?: string;
     wallet_unlock_ttl?: number;
+    wallet_touch_on_read?: boolean;
   }) =>
     request<Record<string, string>>('/api/admin/settings', {
       method: 'PATCH',
@@ -569,10 +570,10 @@ export const api = {
         ),
   leaderboardMe: (network = 'testnet') =>
     request<LeaderboardMe>(`/api/leaderboard/me?network=${encodeURIComponent(network)}`),
-  leaderboardOptIn: (display_name: string, opted_in: boolean) =>
+  leaderboardOptIn: (display_name: string, opted_in: boolean, network = 'testnet') =>
     request<LeaderboardMe>('/api/leaderboard/opt-in', {
       method: 'POST',
-      body: JSON.stringify({ display_name, opted_in })
+      body: JSON.stringify({ display_name, opted_in, network })
     }),
   networkStatus: () => request<NetworkStatus>('/api/network/status'),
   completeNetworkSetup: (skip_tor = false) =>
