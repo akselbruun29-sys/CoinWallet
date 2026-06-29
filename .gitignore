@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+!.env.production.desktop.example
 venv/
 __pycache__/
 *.py[cod]
@@ -19,15 +22,40 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Dependencies (never commit)
+node_modules/
+
+# Agent loop state — local only
+.cursor/LOOP_STATE.json
+PROGRESS.md
+
+# Local wallet / app data
+data/
+
+# Code signing keys (use *.example.json templates only)
+releases/signing-keys.json
+site/static/releases/signing-keys.json
+
 # Desktop release binaries (sync to site/static via scripts/sync-site-releases.mjs before deploy)
 releases/*.exe
 releases/*.dmg
+releases/*.apk
+releases/*.zip
 site/static/releases/*.exe
 site/static/releases/*.dmg
+site/static/releases/*.apk
+site/static/releases/*.zip
 src-tauri/bin/*.exe
 src-tauri/bin/coinwallet-api*
 src-tauri/bin/tor*
-src-tauri/resources/tor/tor.exe
-src-tauri/resources/tor/*.dll
-src-tauri/resources/tor/pluggable_transports/
-src-tauri/resources/tor/.version
+
+# Tor Expert Bundle — download via scripts/setup-tor.ps1, never commit
+src-tauri/resources/tor/*
+!src-tauri/resources/tor/.gitkeep
+
+# Tauri / Rust build output
+src-tauri/target/
+
+# PyInstaller sidecar build output
+scripts/dist/
+scripts/build/
